@@ -154,4 +154,94 @@ docker run -p 8000:8000 ai-proctor-backend
 > Ensure your deployment environment has at least 2GB of RAM for YOLOv8 model loading.
 
 ---
+
+## 🗄️ Interview Intelligence Agent - PostgreSQL Persistence & Migrations
+
+The Interview Intelligence Agent supports robust database-backed persistence using **SQLAlchemy 2.0** and **Alembic** migrations. All interview sessions, transcript segments, structured notes, rubric-based answer evaluations, and final executive reports are persisted transactionally to PostgreSQL.
+
+### 1. Configuration
+
+Set the environment variables in your `.env` file (see `.env.example`):
+
+```bash
+# Persistence mode: 'postgres' (required in production) or 'memory' (unit tests/offline dev)
+INTERVIEW_PERSISTENCE_BACKEND=postgres
+
+# PostgreSQL Connection String (supports psycopg3 or standard postgresql dialect)
+DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/aiproctor
+```
+
+> [!IMPORTANT]
+> When `APP_ENV=production`, `validate_production_security()` strictly enforces that `INTERVIEW_PERSISTENCE_BACKEND=postgres` and `DATABASE_URL` is set to an active PostgreSQL database. In-memory storage is disallowed in production to prevent silent data loss upon worker restarts.
+
+### 2. Alembic Migrations
+
+Run database migrations to initialize or update schema:
+
+```bash
+# Apply all pending migrations to the latest revision
+alembic upgrade head
+
+# Roll back the latest migration
+alembic downgrade -1
+
+# View migration history
+alembic history
+```
+
+### 3. Local Development Database Setup
+
+1. **Start PostgreSQL**:
+   Ensure PostgreSQL is running locally on port 5432:
+   ```powershell
+   Get-Service postgresql* | Start-Service
+   ```
+
+2. **Create the Database**:
+   ```sql
+   CREATE DATABASE aiproctor;
+   ```
+
+3. **Install Dependencies**:
+   ```powershell
+   .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+   ```
+
+4. **Apply Migrations**:
+   ```powershell
+   .\.venv\Scripts\alembic.exe upgrade head
+   ```
+
+5. **Start Application**:
+   ```powershell
+   .\.venv\Scripts\uvicorn.exe main:app --reload --port 8000
+   ```
+
+### 4. Database Reset (Development Only)
+
+> [!CAUTION]
+> **WARNING: Resetting the database permanently destroys all stored sessions, transcripts, evaluations, and reports.** Never execute this against staging or production environments.
+
+To reset the database during local development:
+```powershell
+# Roll back all migrations to base:
+.\.venv\Scripts\alembic.exe downgrade base
+
+# Re-apply all migrations:
+.\.venv\Scripts\alembic.exe upgrade head
+```
+
+Or via psql:
+```sql
+DROP DATABASE aiproctor;
+CREATE DATABASE aiproctor;
+```
+followed by `alembic upgrade head`.
+
+### 5. Multi-Worker & Distributed Architectures
+
+- **State Persistence**: PostgreSQL guarantees that all session state, transcript segments, answer evaluations, and finalized reports survive container and worker restarts.
+- **WebSocket Event Broadcasting**: PostgreSQL alone handles persistent state storage; in a multi-worker application deployment (e.g., Gunicorn with multiple Uvicorn workers or multiple Kubernetes pods), WebSocket connections are terminated per worker. Multi-worker live broadcasting requires a distributed event backplane (such as **Redis Pub/Sub**) to fan out transcript and evaluation events across worker processes.
+
+---
 *Created with ❤️ for Advanced Online Assessment.*

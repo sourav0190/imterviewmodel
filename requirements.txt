@@ -10,3 +10,9 @@ ultralytics
 numpy
 pydantic
 python-dotenv
+websockets
+sqlalchemy
+alembic
+psycopg[binary]
+httpx
+pyjwt[crypto]

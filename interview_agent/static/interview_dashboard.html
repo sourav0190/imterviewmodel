@@ -1,0 +1,1679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview Intelligence Agent - Live Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #090d16;
+            --bg-surface: #111827;
+            --bg-elevated: #1f293d;
+            --border-subtle: #374151;
+            --border-highlight: #4f46e5;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --accent-primary: #6366f1;
+            --accent-secondary: #06b6d4;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            --card-radius: 14px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Navbar */
+        header {
+            background: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 16px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .brand-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-badge {
+            background: linear-gradient(135deg, #4f46e5, #06b6d4);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .connection-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            background: rgba(31, 41, 61, 0.6);
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border-subtle);
+            transition: all 0.3s ease;
+        }
+
+        .indicator-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--accent-danger);
+            transition: all 0.3s ease;
+        }
+
+        .indicator-dot.connected {
+            background-color: var(--accent-success);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
+        }
+
+        .indicator-dot.connecting {
+            background-color: var(--accent-warning);
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+        }
+
+        /* Action Toolbar */
+        .toolbar {
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 12px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .session-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 0.9rem;
+        }
+
+        .session-id-tag {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(99, 102, 241, 0.15);
+            color: #818cf8;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 0.85rem;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-primary), #4338ca);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+        .btn-primary:hover:not(:disabled) {
+            opacity: 0.95;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--bg-elevated);
+            color: var(--text-main);
+            border: 1px solid var(--border-subtle);
+        }
+        .btn-secondary:hover:not(:disabled) {
+            background: #28354f;
+        }
+
+        .btn-success {
+            background: #059669;
+            color: white;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+        }
+        .btn-success:hover:not(:disabled) {
+            background: #10b981;
+            transform: translateY(-1px);
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 28px;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: #1f293d;
+            color: #f3f4f6;
+            border-radius: 8px;
+            padding: 12px 18px;
+            font-size: 0.85rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-left: 4px solid var(--accent-primary);
+            animation: slideIn 0.25s ease;
+            max-width: 380px;
+        }
+        .toast.error { border-left-color: var(--accent-danger); }
+        .toast.success { border-left-color: var(--accent-success); }
+        .toast.warning { border-left-color: var(--accent-warning); }
+
+        @keyframes slideIn {
+            from { transform: translateX(40px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Layout Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1.1fr 1fr 1.1fr;
+            gap: 20px;
+            padding: 24px 28px;
+            flex-grow: 1;
+            height: calc(100vh - 140px);
+            overflow: hidden;
+        }
+
+        @media (max-width: 1100px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                height: auto;
+                overflow: visible;
+            }
+        }
+
+        .panel-column {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--card-radius);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(31, 41, 61, 0.4);
+        }
+
+        .card-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-content {
+            padding: 16px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .empty-placeholder {
+            text-align: center;
+            color: var(--text-muted);
+            margin-top: 40px;
+            font-size: 0.88rem;
+            line-height: 1.5;
+        }
+
+        /* Transcript Feed */
+        .transcript-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .transcript-bubble {
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 0.88rem;
+            line-height: 1.45;
+            position: relative;
+            animation: fadeIn 0.25s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .bubble-interviewer {
+            background: rgba(6, 182, 212, 0.1);
+            border-left: 3px solid var(--accent-secondary);
+        }
+
+        .bubble-candidate {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 3px solid var(--accent-success);
+        }
+
+        .bubble-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .role-interviewer { color: var(--accent-secondary); }
+        .role-candidate { color: var(--accent-success); }
+
+        .time-tag {
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 400;
+        }
+
+        /* In-progress Answer Buffer */
+        .answer-in-progress-card {
+            border: 1px dashed #6366f1;
+            background: rgba(99, 102, 241, 0.05);
+            border-radius: 10px;
+            padding: 14px;
+            margin-top: 10px;
+            animation: pulseGlow 2s infinite;
+        }
+
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 0 rgba(99, 102, 241, 0); }
+            50% { box-shadow: 0 0 12px rgba(99, 102, 241, 0.25); }
+            100% { box-shadow: 0 0 0 rgba(99, 102, 241, 0); }
+        }
+
+        .pulse-text {
+            color: #818cf8;
+            font-size: 0.78rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+
+        .active-q-text {
+            font-size: 0.92rem;
+            font-weight: 600;
+            color: #38bdf8;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        /* Live Notes */
+        .note-card {
+            background: var(--bg-elevated);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 14px;
+            border: 1px solid var(--border-subtle);
+            animation: fadeIn 0.25s ease;
+        }
+
+        .note-q-title {
+            font-weight: 600;
+            font-size: 0.88rem;
+            color: #f3f4f6;
+            margin-bottom: 6px;
+        }
+
+        .note-summary {
+            font-size: 0.84rem;
+            color: #d1d5db;
+            line-height: 1.4;
+            margin-bottom: 10px;
+        }
+
+        .tag-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .tech-tag {
+            background: rgba(99, 102, 241, 0.2);
+            color: #a5b4fc;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        /* Evaluations */
+        .eval-item {
+            background: var(--bg-elevated);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border-subtle);
+            animation: fadeIn 0.25s ease;
+        }
+
+        .eval-item.provisional {
+            border: 1px dashed var(--accent-warning);
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .eval-status-badge {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-provisional {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.4);
+        }
+
+        .badge-complete {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+
+        .score-circle {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #10b981;
+        }
+
+        .score-circle.warning {
+            color: #f59e0b;
+        }
+
+        .dim-bar-wrapper {
+            margin: 10px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .dim-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        .dim-progress {
+            height: 6px;
+            background: #374151;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .dim-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6366f1, #10b981);
+            border-radius: 4px;
+            transition: width 0.4s ease;
+        }
+
+        /* Modal for Final Report */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            max-width: 780px;
+            width: 100%;
+            max-height: 88vh;
+            overflow-y: auto;
+            padding: 28px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        }
+
+        .disclaimer-box {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 0.8rem;
+            color: #93c5fd;
+            margin-top: 16px;
+            line-height: 1.4;
+        }
+
+        .export-btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand-group">
+            <span class="brand-badge">AiProtctor</span>
+            <h1>Interview Intelligence Agent</h1>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <button id="btn-auth-badge" class="btn-secondary" onclick="openAuthModal()" style="font-size: 0.8rem; padding: 6px 14px; display: flex; align-items: center; gap: 8px; background: rgba(31, 41, 61, 0.85); border: 1px solid var(--border-subtle); border-radius: 20px;">
+                <span id="auth-indicator-icon">🔓</span>
+                <span id="auth-indicator-label">Dev / Unauthenticated</span>
+            </button>
+            <div class="connection-indicator">
+                <div id="conn-dot" class="indicator-dot"></div>
+                <span id="conn-text">Connecting...</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="toolbar">
+        <div class="session-info">
+            <span>Session:</span>
+            <span id="session-display" class="session-id-tag">None</span>
+            <span id="candidate-display" style="font-weight: 600;">Candidate: -</span>
+            <span id="status-tag" style="color: var(--accent-success); font-weight: 600;">[STATUS]</span>
+        </div>
+        <div class="btn-group">
+            <button class="btn-primary" id="btn-create" onclick="createNewSession()">+ New Session</button>
+            <button class="btn-secondary" id="btn-mic" onclick="openMicModal()" style="background: linear-gradient(135deg, #0284c7, #2563eb); color: white;">🎙️ Live Mic Stream</button>
+            <button class="btn-secondary" id="btn-mock" onclick="runMockSimulation()">⚡ Run Mock Simulation</button>
+            <button class="btn-success" id="btn-finalize" onclick="finalizeInterview()">📋 Finalize & Report</button>
+        </div>
+    </div>
+
+    <main class="dashboard-grid">
+        <!-- Left Column: Live Audio Transcript & Real-time Turn Stream -->
+        <div class="panel-column">
+            <div class="card" style="flex: 1.5;">
+                <div class="card-header">
+                    <span class="card-title">🎙️ Live Transcript & Audio Stream</span>
+                    <span id="transcript-count" style="font-size: 0.8rem; color: var(--text-muted);">0 segments</span>
+                </div>
+                <div class="card-content" id="transcript-feed">
+                    <div class="transcript-container" id="transcript-container">
+                        <div class="empty-placeholder">
+                            Ready. Start audio stream or click "Run Mock Simulation" above.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- In-Progress Candidate Answer Block -->
+            <div class="card" style="flex: 1;">
+                <div class="card-header">
+                    <span class="card-title">⏳ Candidate Answer In Progress</span>
+                    <span id="uncertain-badge" style="display:none; color: var(--accent-warning); font-size: 0.75rem;">⚠️ Uncertain Association</span>
+                </div>
+                <div class="card-content">
+                    <div id="current-question-box" class="active-q-text">Awaiting next question...</div>
+                    <div id="answer-in-progress" class="answer-in-progress-card" style="display: none;">
+                        <div class="pulse-text">● SPEECH INGESTION ACTIVE</div>
+                        <div id="answer-buffer-text" style="font-size: 0.86rem; color: #e5e7eb; line-height: 1.45;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Column: Continuous Grounded Notes -->
+        <div class="panel-column">
+            <div class="card" style="height: 100%;">
+                <div class="card-header">
+                    <span class="card-title">📝 Structured Interview Notes</span>
+                    <span id="note-count" style="font-size: 0.8rem; color: var(--text-muted);">0 notes</span>
+                </div>
+                <div class="card-content" id="notes-container">
+                    <div class="empty-placeholder">
+                        Notes are extracted and grounded in real-time as QA turns complete.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Rubric Evaluations (Provisional & Finalized) -->
+        <div class="panel-column">
+            <div class="card" style="height: 100%;">
+                <div class="card-header">
+                    <span class="card-title">⚖️ Answer Evaluations & Rubric</span>
+                    <span id="eval-count" style="font-size: 0.8rem; color: var(--text-muted);">0 evaluated</span>
+                </div>
+                <div class="card-content" id="evaluations-container">
+                    <div class="empty-placeholder">
+                        LLM evaluations with dimensional scores will populate automatically.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Final Report Modal -->
+    <div class="modal-overlay" id="report-modal">
+        <div class="modal-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="font-size: 1.4rem;">Final Evaluation & Summary Report</h2>
+                <button class="btn-secondary" id="btn-close-modal" onclick="closeModal()">Close</button>
+            </div>
+            
+            <div id="report-body"></div>
+
+            <div class="export-btn-group">
+                <button class="btn-secondary" onclick="exportReportJSON()">⬇ Export JSON</button>
+                <button class="btn-secondary" onclick="exportReportMarkdown()">⬇ Export Markdown</button>
+            </div>
+
+            <div class="disclaimer-box">
+                <strong>🔒 Architectural Isolation Guarantee:</strong> Technical interview evaluations are strictly decoupled from proctoring suspicion scores. Scoring reflects pure technical depth, reasoning, and conceptual accuracy.
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Microphone Modal -->
+    <div class="modal-overlay" id="mic-modal">
+        <div class="modal-card" style="max-width: 520px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 style="font-size: 1.3rem; display: flex; align-items: center; gap: 8px;">
+                    <span>🎙️</span> Live Microphone Ingestion
+                </h2>
+                <button class="btn-secondary" onclick="closeMicModal()">Close</button>
+            </div>
+
+            <div class="disclaimer-box" style="margin-top: 0; margin-bottom: 18px; border-left-color: #06b6d4; background: rgba(6, 182, 212, 0.08); color: #bae6fd;">
+                <strong>🔒 Consent & Authorization Notice:</strong> By starting the microphone, you authorize capturing your audio for real-time interview transcription and technical assessment. Raw audio is processed in RAM and is NOT saved to disk.
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px;">
+                <div>
+                    <label style="font-size: 0.82rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Speaking As Role:</label>
+                    <select id="mic-role-select" style="width: 100%; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-subtle); padding: 8px 12px; border-radius: 6px; font-family: inherit;" onchange="updateParticipantSelection()">
+                        <option value="interviewer">Interviewer (Question Asker)</option>
+                        <option value="candidate">Candidate (Answer Responder)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="font-size: 0.82rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Participant ID:</label>
+                    <input type="text" id="mic-participant-id" style="width: 100%; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-subtle); padding: 8px 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace;" value="int_lead_1" />
+                </div>
+
+                <div>
+                    <label style="font-size: 0.82rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Live Audio Level:</label>
+                    <div style="height: 12px; background: rgba(255,255,255,0.08); border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle);">
+                        <div id="mic-level-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981, #06b6d4, #f59e0b); transition: width 0.1s ease;"></div>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-muted); padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 6px;">
+                    <span>Stream Status: <strong id="mic-status-label" style="color: var(--accent-warning);">Standby</strong></span>
+                    <span>Chunks: <strong id="mic-chunks-sent" style="color: #818cf8;">0</strong></span>
+                    <span>Elapsed: <strong id="mic-elapsed-time">0.0s</strong></span>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button id="btn-start-mic-action" class="btn-success" style="flex: 1;" onclick="startMicRecording()">Grant Consent & Start</button>
+                <button id="btn-stop-mic-action" class="btn-secondary" style="flex: 1; display: none; background: #dc2626; color: white;" onclick="stopMicRecording()">Stop Microphone</button>
+                <button class="btn-secondary" onclick="closeMicModal()">Cancel</button>
+            </div>
+        </div>
+    <!-- Operator Authentication & Token Management Modal -->
+    <div class="modal-overlay" id="auth-modal">
+        <div class="modal-card" style="max-width: 580px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 style="font-size: 1.3rem; display: flex; align-items: center; gap: 8px;">
+                    <span>🔒</span> Operator Authentication & JWT Token
+                </h2>
+                <button class="btn-secondary" onclick="closeAuthModal()">Close</button>
+            </div>
+
+            <div class="disclaimer-box" style="margin-top: 0; margin-bottom: 18px; border-left-color: #6366f1; background: rgba(99, 102, 241, 0.08); color: #c7d2fe;">
+                <strong>Verified Identity:</strong> In staging and production environments, paste a verified JWT Bearer token issued by your Identity Provider (Auth0, Supabase, Keycloak). The token cryptographically asserts your Principal and Organization boundaries without hardcoded secrets.
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px;">
+                <div>
+                    <label style="font-size: 0.82rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Bearer Token / API Key:</label>
+                    <textarea id="auth-token-input" rows="4" style="width: 100%; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-subtle); padding: 10px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem;" placeholder="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..." oninput="inspectAuthTokenLive()"></textarea>
+                </div>
+
+                <!-- Live Claims Inspector -->
+                <div id="auth-claims-preview" style="display: none; background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px; font-size: 0.8rem;">
+                    <div style="font-weight: 600; color: #818cf8; margin-bottom: 6px;">Parsed Token Claims:</div>
+                    <div style="display: grid; grid-template-columns: 110px 1fr; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;">
+                        <span style="color: var(--text-muted);">Subject (User):</span>
+                        <span id="claim-sub" style="color: #34d399;">-</span>
+                        <span style="color: var(--text-muted);">Organization:</span>
+                        <span id="claim-org" style="color: #38bdf8;">-</span>
+                        <span style="color: var(--text-muted);">Role(s):</span>
+                        <span id="claim-role" style="color: #fbbf24;">-</span>
+                        <span style="color: var(--text-muted);">Expires:</span>
+                        <span id="claim-exp" style="color: #94a3b8;">-</span>
+                        <span style="color: var(--text-muted);">Issuer:</span>
+                        <span id="claim-iss" style="color: #cbd5e1;">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-success" style="flex: 1;" onclick="saveAuthToken()">Save & Authenticate</button>
+                <button class="btn-secondary" style="flex: 1; background: #dc2626; color: white;" onclick="clearAuthToken()">Clear / Logout</button>
+                <button class="btn-secondary" onclick="closeAuthModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        let currentSessionId = null;
+        let ws = null;
+        let lastReportData = null;
+        let isSimulating = false;
+        let isFinalizing = false;
+        let reconnectTimeout = null;
+
+        // --- Authentication & Identity Management ---
+        const AUTH_STORAGE_KEY = 'ai_proctor_token';
+
+        function getAuthToken() {
+            return sessionStorage.getItem(AUTH_STORAGE_KEY) || '';
+        }
+
+        function getAuthHeaders(extraHeaders = {}) {
+            const headers = { 'Content-Type': 'application/json', ...extraHeaders };
+            const token = getAuthToken();
+            if (token) {
+                headers['Authorization'] = 'Bearer ' + token;
+            }
+            return headers;
+        }
+
+        async function apiFetch(url, options = {}) {
+            options.headers = getAuthHeaders(options.headers || {});
+            const res = await fetch(url, options);
+            if (res.status === 401) {
+                showToast("Authentication required or token expired. Please set a valid token.", "warning");
+                openAuthModal();
+            }
+            return res;
+        }
+
+        function openAuthModal() {
+            const modal = document.getElementById('auth-modal');
+            const tokenInput = document.getElementById('auth-token-input');
+            tokenInput.value = getAuthToken();
+            inspectAuthTokenLive();
+            modal.style.display = 'flex';
+            modal.classList.add('active');
+        }
+
+        function closeAuthModal() {
+            const modal = document.getElementById('auth-modal');
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+        }
+
+        function parseJwtPayload(token) {
+            try {
+                if (!token || token.split('.').length !== 3) return null;
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function inspectAuthTokenLive() {
+            const token = document.getElementById('auth-token-input').value.trim();
+            const preview = document.getElementById('auth-claims-preview');
+            if (!token) {
+                preview.style.display = 'none';
+                return;
+            }
+
+            const payload = parseJwtPayload(token);
+            if (payload) {
+                preview.style.display = 'block';
+                document.getElementById('claim-sub').textContent = payload.sub || payload.user_id || '(none)';
+                document.getElementById('claim-org').textContent = payload.org_id || payload.organization_id || payload.tenant_id || '(default)';
+                
+                let roles = payload.role || payload.roles || (payload.app_metadata && payload.app_metadata.roles) || 'user';
+                if (Array.isArray(roles)) roles = roles.join(', ');
+                document.getElementById('claim-role').textContent = roles;
+
+                if (payload.exp) {
+                    const expDate = new Date(payload.exp * 1000);
+                    const isExpired = Date.now() >= payload.exp * 1000;
+                    document.getElementById('claim-exp').textContent = expDate.toLocaleTimeString() + (isExpired ? ' (EXPIRED)' : ' (valid)');
+                    document.getElementById('claim-exp').style.color = isExpired ? '#ef4444' : '#34d399';
+                } else {
+                    document.getElementById('claim-exp').textContent = 'No expiry claim';
+                    document.getElementById('claim-exp').style.color = '#94a3b8';
+                }
+                document.getElementById('claim-iss').textContent = payload.iss || '(none)';
+            } else {
+                preview.style.display = 'block';
+                document.getElementById('claim-sub').textContent = 'Server Pre-shared Key / Non-JWT';
+                document.getElementById('claim-org').textContent = 'Default';
+                document.getElementById('claim-role').textContent = 'user';
+                document.getElementById('claim-exp').textContent = 'Static';
+                document.getElementById('claim-exp').style.color = '#94a3b8';
+                document.getElementById('claim-iss').textContent = 'Local Gateway';
+            }
+        }
+
+        function saveAuthToken() {
+            const token = document.getElementById('auth-token-input').value.trim();
+            if (token) {
+                sessionStorage.setItem(AUTH_STORAGE_KEY, token);
+                showToast("Authentication token saved.", "success");
+            } else {
+                sessionStorage.removeItem(AUTH_STORAGE_KEY);
+                showToast("Cleared authentication token.", "info");
+            }
+            updateAuthStatusUI();
+            closeAuthModal();
+        }
+
+        function clearAuthToken() {
+            sessionStorage.removeItem(AUTH_STORAGE_KEY);
+            document.getElementById('auth-token-input').value = '';
+            inspectAuthTokenLive();
+            updateAuthStatusUI();
+            showToast("Logged out / Token cleared.", "info");
+            closeAuthModal();
+        }
+
+        function updateAuthStatusUI() {
+            const token = getAuthToken();
+            const label = document.getElementById('auth-indicator-label');
+            const icon = document.getElementById('auth-indicator-icon');
+            if (token) {
+                const payload = parseJwtPayload(token);
+                if (payload) {
+                    const sub = payload.sub || 'Operator';
+                    const org = payload.org_id || payload.organization_id || '';
+                    label.textContent = org ? `${sub} (${org})` : sub;
+                } else {
+                    label.textContent = "Server API Key";
+                }
+                icon.textContent = "🔒";
+                document.getElementById('btn-auth-badge').style.borderColor = 'var(--accent-success)';
+                document.getElementById('btn-auth-badge').style.color = '#34d399';
+            } else {
+                label.textContent = "Dev / Unauthenticated";
+                icon.textContent = "🔓";
+                document.getElementById('btn-auth-badge').style.borderColor = 'var(--border-subtle)';
+                document.getElementById('btn-auth-badge').style.color = 'var(--text-main)';
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        function resetUIState() {
+            // Reset transcript
+            document.getElementById('transcript-container').innerHTML = `
+                <div class="empty-placeholder">
+                    Ready. Start audio stream or click "Run Mock Simulation" above.
+                </div>
+            `;
+            document.getElementById('transcript-count').textContent = '0 segments';
+
+            // Reset notes
+            document.getElementById('notes-container').innerHTML = `
+                <div class="empty-placeholder">
+                    Notes are extracted and grounded in real-time as QA turns complete.
+                </div>
+            `;
+            document.getElementById('note-count').textContent = '0 notes';
+
+            // Reset evaluations
+            document.getElementById('evaluations-container').innerHTML = `
+                <div class="empty-placeholder">
+                    LLM evaluations with dimensional scores will populate automatically.
+                </div>
+            `;
+            document.getElementById('eval-count').textContent = '0 evaluated';
+
+            // Reset answer buffer
+            document.getElementById('current-question-box').textContent = 'Awaiting next question...';
+            document.getElementById('answer-in-progress').style.display = 'none';
+            document.getElementById('answer-buffer-text').textContent = '';
+            document.getElementById('uncertain-badge').style.display = 'none';
+
+            // Close modal if open
+            closeModal();
+            lastReportData = null;
+        }
+
+        async function createNewSession() {
+            const btn = document.getElementById('btn-create');
+            btn.disabled = true;
+            btn.textContent = "+ Creating...";
+
+            try {
+                // Clear UI state first
+                resetUIState();
+
+                const candidateId = "cand_" + Math.random().toString(36).substring(2, 8);
+                const candidateNames = ["Alex Mercer", "Jordan Lee", "Elena Rostova", "Marcus Chen", "Samira Patel"];
+                const randomName = candidateNames[Math.floor(Math.random() * candidateNames.length)];
+
+                const res = await apiFetch('/api/v1/interviews', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        title: "Full-Stack & Systems Architecture Interview",
+                        candidate_id: candidateId,
+                        candidate_name: randomName,
+                        interviewer_id: "int_lead_1",
+                        interviewer_name: "Technical Lead",
+                        consent_obtained: true
+                    })
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.detail || `Server returned status ${res.status}: ${res.statusText}`);
+                }
+
+                const session = await res.json();
+                currentSessionId = session.session_id;
+                window.currentCandidateId = session.candidate_id;
+
+                document.getElementById('session-display').textContent = session.session_id;
+                document.getElementById('candidate-display').textContent = "Candidate: " + session.candidate_name;
+                document.getElementById('status-tag').textContent = `[${session.status.toUpperCase()}]`;
+
+                connectWebSocket(session.session_id);
+                showToast(`Session created: ${session.session_id}`, 'success');
+            } catch (err) {
+                console.error("Failed to create session:", err);
+                showToast(`Failed to create session: ${err.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "+ New Session";
+            }
+        }
+
+        async function connectWebSocket(sessionId) {
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+                reconnectTimeout = null;
+            }
+
+            if (ws) {
+                ws.onopen = null;
+                ws.onclose = null;
+                ws.onerror = null;
+                ws.onmessage = null;
+                ws.close();
+                ws = null;
+            }
+
+            const dot = document.getElementById('conn-dot');
+            const statusText = document.getElementById('conn-text');
+            dot.className = 'indicator-dot connecting';
+            statusText.textContent = "Connecting...";
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            let wsUrl = `${protocol}//${window.location.host}/api/v1/interviews/ws/${sessionId}`;
+
+            // Acquire short-lived WebSocket ticket if authenticated
+            const token = getAuthToken();
+            if (token) {
+                try {
+                    const ticketRes = await apiFetch('/api/v1/interviews/ws-ticket', {
+                        method: 'POST',
+                        body: JSON.stringify({ session_id: sessionId })
+                    });
+                    if (ticketRes.ok) {
+                        const ticketData = await ticketRes.json();
+                        wsUrl += `?ticket=${encodeURIComponent(ticketData.ticket)}`;
+                    } else if (ticketRes.status === 401) {
+                        dot.className = 'indicator-dot';
+                        statusText.textContent = "Auth Required";
+                        showToast("WebSocket authorization failed. Please log in.", "error");
+                        openAuthModal();
+                        return;
+                    }
+                } catch (ticketErr) {
+                    console.error("Failed to acquire WebSocket ticket:", ticketErr);
+                }
+            }
+
+            try {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => {
+                    dot.className = 'indicator-dot connected';
+                    statusText.textContent = "Stream Connected";
+                };
+
+                ws.onclose = (event) => {
+                    dot.className = 'indicator-dot';
+                    statusText.textContent = "Disconnected";
+                    console.log("WebSocket disconnected:", event.code, event.reason);
+                };
+
+                ws.onerror = (err) => {
+                    dot.className = 'indicator-dot';
+                    statusText.textContent = "Connection Error";
+                    console.error("WebSocket error:", err);
+                };
+
+                ws.onmessage = (event) => {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        handleWsMessage(msg);
+                    } catch (e) {
+                        console.error("Failed to parse WS message:", e, event.data);
+                    }
+                };
+            } catch (e) {
+                dot.className = 'indicator-dot';
+                statusText.textContent = "Connection Failed";
+                console.error("WebSocket creation error:", e);
+            }
+        }
+
+        function handleWsMessage(msg) {
+            switch(msg.type) {
+                case 'session_snapshot':
+                    renderSnapshot(msg);
+                    break;
+                case 'transcript_segment':
+                    appendTranscriptSegment(msg.segment);
+                    break;
+                case 'active_question_state':
+                    updateActiveQuestion(msg.state);
+                    break;
+                case 'interview_note':
+                    appendNote(msg.note);
+                    break;
+                case 'answer_evaluation':
+                    upsertEvaluation(msg.evaluation);
+                    break;
+                case 'session_status_changed':
+                    if (msg.status) {
+                        document.getElementById('status-tag').textContent = `[${msg.status.toUpperCase()}]`;
+                    }
+                    break;
+                case 'final_report':
+                    lastReportData = msg.report;
+                    showReportModal(msg.report);
+                    break;
+            }
+        }
+
+        function renderSnapshot(data) {
+            if (data.session && data.session.status) {
+                document.getElementById('status-tag').textContent = `[${data.session.status.toUpperCase()}]`;
+            }
+
+            if (data.transcript && data.transcript.length > 0) {
+                const container = document.getElementById('transcript-container');
+                container.innerHTML = '';
+                data.transcript.forEach(appendTranscriptSegment);
+            }
+
+            if (data.notes && data.notes.length > 0) {
+                const container = document.getElementById('notes-container');
+                container.innerHTML = '';
+                data.notes.forEach(appendNote);
+            }
+
+            if (data.evaluations && data.evaluations.length > 0) {
+                const container = document.getElementById('evaluations-container');
+                container.innerHTML = '';
+                data.evaluations.forEach(upsertEvaluation);
+            }
+
+            if (data.final_report) {
+                lastReportData = data.final_report;
+            }
+        }
+
+        function appendTranscriptSegment(seg) {
+            const container = document.getElementById('transcript-container');
+            if (container.querySelector('.empty-placeholder')) {
+                container.innerHTML = '';
+            }
+
+            const isInterviewer = seg.speaker_role === 'interviewer';
+            const bubble = document.createElement('div');
+            bubble.className = `transcript-bubble ${isInterviewer ? 'bubble-interviewer' : 'bubble-candidate'}`;
+            bubble.innerHTML = `
+                <div class="bubble-header">
+                    <span class="${isInterviewer ? 'role-interviewer' : 'role-candidate'}">${seg.speaker_name} (${seg.speaker_role.toUpperCase()})</span>
+                    <span class="time-tag">${seg.start_time.toFixed(1)}s - ${seg.end_time.toFixed(1)}s</span>
+                </div>
+                <div>${seg.text}</div>
+            `;
+            container.appendChild(bubble);
+
+            // Update counter
+            const count = container.querySelectorAll('.transcript-bubble').length;
+            document.getElementById('transcript-count').textContent = `${count} segments`;
+
+            // Auto-scroll
+            const feed = document.getElementById('transcript-feed');
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        function updateActiveQuestion(state) {
+            document.getElementById('current-question-box').textContent = state.question_text || "Awaiting next question...";
+            const bufferBox = document.getElementById('answer-in-progress');
+            const bufferText = document.getElementById('answer-buffer-text');
+            const uncertainBadge = document.getElementById('uncertain-badge');
+
+            uncertainBadge.style.display = state.uncertain_association ? 'inline' : 'none';
+
+            if (state.accumulated_answer && !state.is_completed) {
+                bufferBox.style.display = 'block';
+                bufferText.textContent = state.accumulated_answer;
+            } else {
+                bufferBox.style.display = 'none';
+            }
+        }
+
+        function appendNote(note) {
+            const container = document.getElementById('notes-container');
+            if (container.querySelector('.empty-placeholder')) {
+                container.innerHTML = '';
+            }
+
+            // Check if note already exists by id
+            let card = document.getElementById(`note-${note.note_id || note.question_id}`);
+            if (!card) {
+                card = document.createElement('div');
+                card.id = `note-${note.note_id || note.question_id}`;
+                card.className = 'note-card';
+                container.prepend(card);
+            }
+
+            card.innerHTML = `
+                <div class="note-q-title">Q: ${note.question_text}</div>
+                <div class="note-summary"><strong>Summary:</strong> ${note.answer_summary}</div>
+                <div class="tag-row">
+                    ${(note.key_concepts || []).map(c => `<span class="tech-tag">${c}</span>`).join('')}
+                </div>
+                ${note.omissions && note.omissions.length ? `<div style="font-size:0.75rem; color:#f87171; margin-top:6px;">⚠️ Omissions: ${note.omissions.join(', ')}</div>` : ''}
+                ${note.examples_provided && note.examples_provided.length ? `<div style="font-size:0.75rem; color:#34d399; margin-top:4px;">💡 Example: ${note.examples_provided[0]}</div>` : ''}
+            `;
+
+            const count = container.querySelectorAll('.note-card').length;
+            document.getElementById('note-count').textContent = `${count} notes`;
+        }
+
+        function upsertEvaluation(ev) {
+            const container = document.getElementById('evaluations-container');
+            if (container.querySelector('.empty-placeholder')) {
+                container.innerHTML = '';
+            }
+
+            let card = document.getElementById(`eval-${ev.question_id}`);
+            if (!card) {
+                card = document.createElement('div');
+                card.id = `eval-${ev.question_id}`;
+                container.prepend(card);
+            }
+
+            const isProvisional = ev.status === 'provisional';
+            card.className = `eval-item ${isProvisional ? 'provisional' : ''}`;
+
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <span class="eval-status-badge ${isProvisional ? 'badge-provisional' : 'badge-complete'}">
+                        ${isProvisional ? '⚡ PROVISIONAL (In Progress)' : '✓ COMPLETE'}
+                    </span>
+                    <span class="score-circle ${ev.overall_score < 3.0 ? 'warning' : ''}">${ev.overall_score}/5.0</span>
+                </div>
+                <div style="font-size:0.86rem; font-weight:600; margin-bottom:6px;">${ev.question_text}</div>
+                <div style="font-size:0.8rem; color:#9ca3af; margin-bottom:10px;">${ev.explanation}</div>
+                
+                <div class="dim-bar-wrapper">
+                    ${(ev.scores || []).map(s => `
+                        <div class="dim-row">
+                            <span>${s.dimension_name}</span>
+                            <span>${s.score.toFixed(1)} / 5.0</span>
+                        </div>
+                        <div class="dim-progress">
+                            <div class="dim-fill" style="width: ${(s.score / 5.0) * 100}%"></div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                ${ev.strengths && ev.strengths.length ? `<div style="font-size:0.76rem; color:#34d399; margin-top:8px;">★ Strengths: ${ev.strengths.join('; ')}</div>` : ''}
+                ${ev.suggested_follow_ups && ev.suggested_follow_ups.length ? `<div style="font-size:0.76rem; color:#818cf8; margin-top:4px;">💡 Follow-up: ${ev.suggested_follow_ups[0]}</div>` : ''}
+            `;
+
+            const count = container.querySelectorAll('.eval-item').length;
+            document.getElementById('eval-count').textContent = `${count} evaluated`;
+        }
+
+        async function runMockSimulation() {
+            if (isSimulating) return;
+
+            const btn = document.getElementById('btn-mock');
+            if (!currentSessionId) {
+                await createNewSession();
+            }
+
+            isSimulating = true;
+            btn.disabled = true;
+            btn.textContent = "⚡ Simulating (streaming)...";
+
+            try {
+                // Call simulation with step_delay=0.4 to stream turns live via WebSocket
+                const res = await apiFetch(`/api/v1/interviews/${currentSessionId}/simulate-mock?auto_finalize=false&step_delay=0.4`, {
+                    method: 'POST'
+                });
+
+                if (!res.ok) {
+                    const errJson = await res.json().catch(() => ({}));
+                    throw new Error(errJson.detail || `Server status ${res.status}`);
+                }
+
+                const data = await res.json();
+                showToast(`Simulation complete: ${data.segments_generated} segments ingested`, 'success');
+                
+                // Fallback sync if needed
+                await syncSessionData(currentSessionId);
+            } catch (err) {
+                console.error("Simulation error:", err);
+                showToast(`Simulation error: ${err.message}`, 'error');
+            } finally {
+                isSimulating = false;
+                btn.disabled = false;
+                btn.textContent = "⚡ Run Mock Simulation";
+            }
+        }
+
+        async function finalizeInterview() {
+            if (isFinalizing) return;
+            if (!currentSessionId) {
+                showToast("Please create a session first", "warning");
+                return;
+            }
+
+            const btn = document.getElementById('btn-finalize');
+            isFinalizing = true;
+            btn.disabled = true;
+            btn.textContent = "📋 Finalizing...";
+
+            try {
+                const res = await apiFetch(`/api/v1/interviews/${currentSessionId}/finalize`, {
+                    method: 'POST'
+                });
+
+                if (!res.ok) {
+                    const errJson = await res.json().catch(() => ({}));
+                    throw new Error(errJson.detail || `Server status ${res.status}`);
+                }
+
+                const report = await res.json();
+                lastReportData = report;
+                document.getElementById('status-tag').textContent = '[COMPLETED]';
+                showReportModal(report);
+                showToast("Interview finalized and report generated", "success");
+            } catch (err) {
+                console.error("Finalize error:", err);
+                showToast(`Finalize error: ${err.message}`, 'error');
+            } finally {
+                isFinalizing = false;
+                btn.disabled = false;
+                btn.textContent = "📋 Finalize & Report";
+            }
+        }
+
+        async function syncSessionData(sessionId) {
+            try {
+                // Transcript sync
+                const tRes = await apiFetch(`/api/v1/interviews/${sessionId}/transcript`);
+                if (tRes.ok) {
+                    const tData = await tRes.json();
+                    if (tData.segments && tData.segments.length > 0) {
+                        const container = document.getElementById('transcript-container');
+                        container.innerHTML = '';
+                        tData.segments.forEach(appendTranscriptSegment);
+                    }
+                }
+
+                // Notes sync
+                const nRes = await apiFetch(`/api/v1/interviews/${sessionId}/notes`);
+                if (nRes.ok) {
+                    const notes = await nRes.json();
+                    if (notes.length > 0) {
+                        const container = document.getElementById('notes-container');
+                        container.innerHTML = '';
+                        notes.forEach(appendNote);
+                    }
+                }
+
+                // Evaluations sync
+                const eRes = await apiFetch(`/api/v1/interviews/${sessionId}/evaluations`);
+                if (eRes.ok) {
+                    const evals = await eRes.json();
+                    if (evals.length > 0) {
+                        const container = document.getElementById('evaluations-container');
+                        container.innerHTML = '';
+                        evals.forEach(upsertEvaluation);
+                    }
+                }
+            } catch (e) {
+                console.debug("Sync error:", e);
+            }
+        }
+
+        function showReportModal(report) {
+            const body = document.getElementById('report-body');
+            lastReportData = report;
+
+            const evalsHtml = (report.question_evaluations || []).map(ev => `
+                <div style="background:#111827; border:1px solid #374151; border-radius:10px; padding:14px; margin-top:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span style="font-weight:600; font-size:0.9rem;">${ev.question_text}</span>
+                        <span style="color:#10b981; font-weight:700;">${ev.overall_score}/5.0</span>
+                    </div>
+                    <div style="font-size:0.84rem; color:#d1d5db; margin-bottom:8px;">${ev.explanation}</div>
+                    ${ev.scores ? `
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:0.78rem; color:#9ca3af;">
+                            ${ev.scores.map(s => `<div>${s.dimension_name}: <strong style="color:#f3f4f6;">${s.score.toFixed(1)}/5</strong></div>`).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+
+            body.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#1f293d; padding:18px; border-radius:12px; margin-bottom:18px;">
+                    <div>
+                        <div style="font-size:1.15rem; font-weight:700;">${report.candidate_name}</div>
+                        <div style="font-size:0.85rem; color:#9ca3af;">${report.interview_title}</div>
+                        <div style="font-size:0.75rem; color:#6b7280; font-family:'JetBrains Mono', monospace; margin-top:2px;">Session: ${report.session_id}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:2rem; font-weight:800; color:#10b981;">${report.aggregate_score} / 5.0</div>
+                        <div style="font-size:0.8rem; color:#9ca3af;">${report.aggregate_percentage}% Technical Proficiency</div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:16px; font-size:0.9rem; line-height:1.55;">
+                    <strong style="color:#e5e7eb;">Executive Summary:</strong><br>
+                    <span style="color:#d1d5db;">${report.executive_summary}</span>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px;">
+                    <div style="background:#111827; padding:12px 14px; border-radius:10px; border:1px solid #374151;">
+                        <strong style="color:#34d399; font-size:0.85rem;">★ Key Demonstrated Strengths:</strong>
+                        <ul style="margin-left:18px; font-size:0.82rem; color:#d1d5db; margin-top:6px; line-height:1.4;">
+                            ${(report.top_strengths || []).map(s => `<li>${s}</li>`).join('') || '<li>Standard technical foundation</li>'}
+                        </ul>
+                    </div>
+                    <div style="background:#111827; padding:12px 14px; border-radius:10px; border:1px solid #374151;">
+                        <strong style="color:#f87171; font-size:0.85rem;">⚠️ Key Areas for Growth:</strong>
+                        <ul style="margin-left:18px; font-size:0.82rem; color:#d1d5db; margin-top:6px; line-height:1.4;">
+                            ${(report.key_areas_for_improvement || []).map(i => `<li>${i}</li>`).join('') || '<li>Advanced distributed edge-cases</li>'}
+                        </ul>
+                    </div>
+                </div>
+
+                <div>
+                    <strong style="color:#e5e7eb; font-size:0.9rem;">Question-by-Question Evaluation:</strong>
+                    ${evalsHtml || '<div style="color:#9ca3af; font-size:0.85rem; margin-top:6px;">No question evaluations recorded.</div>'}
+                </div>
+            `;
+            document.getElementById('report-modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('report-modal').style.display = 'none';
+        }
+
+        function exportReportJSON() {
+            if (!lastReportData) return;
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(lastReportData, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `interview_report_${lastReportData.session_id}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function exportReportMarkdown() {
+            if (!lastReportData) return;
+            const r = lastReportData;
+            let md = `# Interview Evaluation Report: ${r.candidate_name}\n\n`;
+            md += `**Title**: ${r.interview_title}\n`;
+            md += `**Session ID**: ${r.session_id}\n`;
+            md += `**Overall Score**: ${r.aggregate_score} / 5.0 (${r.aggregate_percentage}%)\n\n`;
+            md += `## Executive Summary\n${r.executive_summary}\n\n`;
+            md += `## Top Strengths\n`;
+            (r.top_strengths || []).forEach(s => md += `- ${s}\n`);
+            md += `\n## Areas for Growth\n`;
+            (r.key_areas_for_improvement || []).forEach(i => md += `- ${i}\n`);
+            md += `\n## Question-wise Breakdown\n`;
+            (r.question_evaluations || []).forEach((ev, i) => {
+                md += `\n### ${i+1}. ${ev.question_text}\n`;
+                md += `- **Score**: ${ev.overall_score} / 5.0\n`;
+                md += `- **Explanation**: ${ev.explanation}\n`;
+                if (ev.scores) {
+                    ev.scores.forEach(s => md += `  - ${s.dimension_name}: ${s.score}/5.0\n`);
+                }
+            });
+            md += `\n---\n*Notice: ${r.proctoring_score_isolation_notice}*\n`;
+
+            const dataStr = "data:text/markdown;charset=utf-8," + encodeURIComponent(md);
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `interview_report_${r.session_id}.md`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        // Close modal when clicking outside of modal card
+        window.addEventListener('click', (e) => {
+            const reportModal = document.getElementById('report-modal');
+            const micModal = document.getElementById('mic-modal');
+            if (e.target === reportModal) {
+                closeModal();
+            }
+            if (e.target === micModal) {
+                closeMicModal();
+            }
+        });
+
+        // --- Live Microphone Audio Stream Controls ---
+        let micStream = null;
+        let micAudioCtx = null;
+        let micAnalyser = null;
+        let micAnimId = null;
+        let micMediaRecorder = null;
+        let micSeqNumber = 0;
+        let micStartTime = 0;
+        let micIntervalId = null;
+
+        function openMicModal() {
+            if (!currentSessionId) {
+                showToast("Please create a session before starting live microphone.", "warning");
+                return;
+            }
+            const modal = document.getElementById('mic-modal');
+            modal.style.display = 'flex';
+            modal.classList.add('active');
+            updateParticipantSelection();
+        }
+
+        function closeMicModal() {
+            const modal = document.getElementById('mic-modal');
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+        }
+
+        function updateParticipantSelection() {
+            const role = document.getElementById('mic-role-select').value;
+            const partInput = document.getElementById('mic-participant-id');
+            if (role === 'interviewer') {
+                partInput.value = 'int_lead_1';
+            } else {
+                partInput.value = window.currentCandidateId || ('cand_' + (currentSessionId ? currentSessionId.substring(4, 10) : '001'));
+            }
+        }
+
+        async function startMicRecording() {
+            if (!currentSessionId) {
+                showToast("No active session.", "error");
+                return;
+            }
+            const role = document.getElementById('mic-role-select').value;
+            const participantId = document.getElementById('mic-participant-id').value.trim();
+            if (!participantId) {
+                showToast("Participant ID cannot be empty.", "warning");
+                return;
+            }
+
+            try {
+                micStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        channelCount: 1,
+                        sampleRate: 16000,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
+                });
+
+                // Setup AudioContext for level meter
+                micAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const source = micAudioCtx.createMediaStreamSource(micStream);
+                micAnalyser = micAudioCtx.createAnalyser();
+                micAnalyser.fftSize = 256;
+                source.connect(micAnalyser);
+
+                const dataArray = new Uint8Array(micAnalyser.frequencyBinCount);
+                function drawLevel() {
+                    if (!micAnalyser) return;
+                    micAnalyser.getByteFrequencyData(dataArray);
+                    let sum = 0;
+                    for (let i = 0; i < dataArray.length; i++) {
+                        sum += dataArray[i];
+                    }
+                    const avg = sum / dataArray.length;
+                    const pct = Math.min(100, Math.round((avg / 128) * 100));
+                    document.getElementById('mic-level-bar').style.width = pct + '%';
+                    micAnimId = requestAnimationFrame(drawLevel);
+                }
+                drawLevel();
+
+                // Setup MediaRecorder
+                const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+                let selectedMime = '';
+                for (const m of mimeTypes) {
+                    if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) {
+                        selectedMime = m;
+                        break;
+                    }
+                }
+                micMediaRecorder = new MediaRecorder(micStream, selectedMime ? { mimeType: selectedMime } : undefined);
+
+                micSeqNumber = 0;
+                micStartTime = Date.now();
+                document.getElementById('mic-chunks-sent').textContent = '0';
+                document.getElementById('mic-status-label').textContent = 'Live Streaming';
+                document.getElementById('mic-status-label').style.color = 'var(--accent-success)';
+                document.getElementById('btn-start-mic-action').style.display = 'none';
+                document.getElementById('btn-stop-mic-action').style.display = 'inline-flex';
+
+                micIntervalId = setInterval(() => {
+                    const elapsed = ((Date.now() - micStartTime) / 1000).toFixed(1);
+                    document.getElementById('mic-elapsed-time').textContent = elapsed + 's';
+                }, 200);
+
+                micMediaRecorder.ondataavailable = async (evt) => {
+                    if (evt.data && evt.data.size > 0) {
+                        const chunkBlob = evt.data;
+                        const chunkOffset = (micSeqNumber * 2.5);
+                        const currentSeq = micSeqNumber++;
+                        document.getElementById('mic-chunks-sent').textContent = micSeqNumber;
+
+                        const reader = new FileReader();
+                        reader.onloadend = async () => {
+                            const dataUrl = reader.result;
+                            const base64Data = dataUrl.split(',')[1];
+                            const fmt = selectedMime.includes('webm') ? 'webm' : (selectedMime.includes('ogg') ? 'ogg' : 'pcm');
+
+                            try {
+                                const payload = {
+                                    session_id: currentSessionId,
+                                    participant_id: participantId,
+                                    participant_role: role,
+                                    sequence_number: currentSeq,
+                                    timestamp: chunkOffset,
+                                    duration: 2.5,
+                                    audio_base64: base64Data,
+                                    format: fmt,
+                                    sample_rate: 16000,
+                                    channels: 1
+                                };
+
+                                const res = await apiFetch(`/api/v1/interviews/${currentSessionId}/audio`, {
+                                    method: 'POST',
+                                    body: JSON.stringify(payload)
+                                });
+                                if (!res.ok) {
+                                    const errData = await res.json().catch(() => ({}));
+                                    console.warn("Audio chunk ingestion error:", errData);
+                                }
+                            } catch (fetchErr) {
+                                console.error("Audio chunk network failure:", fetchErr);
+                            }
+                        };
+                        reader.readAsDataURL(chunkBlob);
+                    }
+                };
+
+                // Slice audio every 2.5 seconds
+                micMediaRecorder.start(2500);
+                showToast("Live microphone streaming started (2.5s slices).", "success");
+            } catch (err) {
+                console.error("Failed to access microphone:", err);
+                showToast("Microphone access failed: " + err.message, "error");
+                stopMicRecording();
+            }
+        }
+
+        function stopMicRecording() {
+            if (micMediaRecorder && micMediaRecorder.state !== 'inactive') {
+                try { micMediaRecorder.stop(); } catch (e) {}
+            }
+            if (micStream) {
+                micStream.getTracks().forEach(t => t.stop());
+                micStream = null;
+            }
+            if (micAudioCtx) {
+                try { micAudioCtx.close(); } catch (e) {}
+                micAudioCtx = null;
+            }
+            if (micAnimId) {
+                cancelAnimationFrame(micAnimId);
+                micAnimId = null;
+            }
+            if (micIntervalId) {
+                clearInterval(micIntervalId);
+                micIntervalId = null;
+            }
+            document.getElementById('mic-level-bar').style.width = '0%';
+            document.getElementById('mic-status-label').textContent = 'Stopped';
+            document.getElementById('mic-status-label').style.color = 'var(--text-muted)';
+            document.getElementById('btn-start-mic-action').style.display = 'inline-flex';
+            document.getElementById('btn-stop-mic-action').style.display = 'none';
+        }
+
+        // Auto initialize first session on load
+        window.onload = () => {
+            updateAuthStatusUI();
+            createNewSession();
+        };
+    </script>
+</body>
+</html>
