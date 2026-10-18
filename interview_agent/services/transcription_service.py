@@ -67,7 +67,8 @@ class MockTranscriptionService(BaseTranscriptionService):
             is_final=True,
             confidence=0.98,
             sequence_number=chunk.sequence_number,
-            is_simulated=True
+            is_simulated=True,
+            source="simulation"
         )
         return segment
 
@@ -106,7 +107,8 @@ class WhisperTranscriptionService(BaseTranscriptionService):
                 is_final=True,
                 confidence=0.99,
                 sequence_number=chunk.sequence_number,
-                is_simulated=True
+                is_simulated=True,
+                source="simulation"
             )
 
         # Reject if API key is not configured when using Whisper
@@ -157,7 +159,8 @@ class WhisperTranscriptionService(BaseTranscriptionService):
                             is_final=True,
                             confidence=0.95,
                             sequence_number=chunk.sequence_number,
-                            is_simulated=False
+                            is_simulated=False,
+                            source="local_microphone"
                         )
                 elif res.status_code == 401:
                     logger.error("Whisper API authentication failed: Invalid or expired API key (HTTP 401).")

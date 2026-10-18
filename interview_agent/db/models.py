@@ -212,8 +212,14 @@ class FinalReportORM(Base):
     key_areas_for_improvement = Column(JSON, nullable=False, default=list)
     dimension_scores = Column(JSON, nullable=True, default=list)
     evaluations = Column(JSON, nullable=True, default=list)
+    meeting_date = Column(String(64), nullable=True)
+    participants = Column(JSON, nullable=True, default=list)
+    technical_concepts_discussed = Column(JSON, nullable=True, default=list)
+    decisions_and_actions = Column(JSON, nullable=True, default=list)
+    unanswered_questions = Column(JSON, nullable=True, default=list)
     proctoring_suspicion_score = Column(Float, nullable=True)
     recommendation = Column(String(64), nullable=True)
+    transcript_provenance = Column(JSON, nullable=True, default=dict)
     created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
 
 

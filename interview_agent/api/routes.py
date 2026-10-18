@@ -130,6 +130,12 @@ async def simulate_mock_interview(
     principal: Principal = Depends(get_current_principal)
 ):
     """Simulates an automated full technical interview conversation for testing/dev."""
+    if settings.app_env.lower() in ("production", "prod"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Development simulation endpoints are strictly prohibited in production mode."
+        )
+
     session = check_session_access(interview_session_service.get_session(session_id), principal)
     from interview_agent.services.audio_adapter import AudioAdapterException
     try:

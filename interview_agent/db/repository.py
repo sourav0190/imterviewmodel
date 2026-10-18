@@ -149,14 +149,20 @@ def orm_to_domain(orm: SessionORM) -> InterviewSessionModel:
             status=fr.status,
             started_at=fr.started_at,
             completed_at=fr.completed_at,
+            meeting_date=getattr(fr, "meeting_date", None),
+            participants=getattr(fr, "participants", []) or [],
             executive_summary=fr.executive_summary,
             aggregate_score=fr.aggregate_score,
             max_possible_score=fr.max_possible_score or 5.0,
             aggregate_percentage=fr.aggregate_percentage,
             top_strengths=fr.top_strengths or [],
             key_areas_for_improvement=fr.key_areas_for_improvement or [],
+            technical_concepts_discussed=getattr(fr, "technical_concepts_discussed", []) or [],
+            decisions_and_actions=getattr(fr, "decisions_and_actions", []) or [],
+            unanswered_questions=getattr(fr, "unanswered_questions", []) or [],
             question_evaluations=session.evaluations,
-            notes=session.notes
+            notes=session.notes,
+            transcript_provenance=getattr(fr, "transcript_provenance", {}) or {}
         )
 
     return session
@@ -331,8 +337,14 @@ class SQLAlchemySessionRepository:
                     key_areas_for_improvement=fr.key_areas_for_improvement,
                     dimension_scores=dim_scores,
                     evaluations=evals,
+                    meeting_date=getattr(fr, "meeting_date", None),
+                    participants=getattr(fr, "participants", []),
+                    technical_concepts_discussed=getattr(fr, "technical_concepts_discussed", []),
+                    decisions_and_actions=getattr(fr, "decisions_and_actions", []),
+                    unanswered_questions=getattr(fr, "unanswered_questions", []),
                     proctoring_suspicion_score=getattr(fr, "proctoring_suspicion_score", None),
                     recommendation=getattr(fr, "recommendation", "Hire"),
+                    transcript_provenance=getattr(fr, "transcript_provenance", {}),
                     created_at=datetime.utcnow()
                 )
                 db.add(fr_orm)

@@ -69,6 +69,26 @@ class InterviewConfig(BaseModel):
         ]
     )
 
+    # Jitsi Meet Integration Settings
+    jitsi_server_url: str = Field(default_factory=lambda: os.getenv("JITSI_SERVER_URL", "https://meet.jit.si").rstrip("/"))
+    jitsi_domain: str = Field(default_factory=lambda: os.getenv("JITSI_DOMAIN", "meet.jit.si"))
+    jitsi_room_prefix: str = Field(default_factory=lambda: os.getenv("JITSI_ROOM_PREFIX", "AiProtctor-Interview"))
+    jitsi_webhook_secret: Optional[str] = Field(default_factory=lambda: os.getenv("JITSI_WEBHOOK_SECRET", None))
+    jitsi_app_id: Optional[str] = Field(default_factory=lambda: os.getenv("JITSI_APP_ID", None))
+    jitsi_api_key: Optional[str] = Field(default_factory=lambda: os.getenv("JITSI_API_KEY", None))
+    jitsi_secret: Optional[str] = Field(default_factory=lambda: os.getenv("JITSI_SECRET", None))
+    jitsi_transcription_service_url: Optional[str] = Field(default_factory=lambda: os.getenv("JITSI_TRANSCRIBER_URL", None))
+    jitsi_transcription_enabled: bool = Field(
+        default_factory=lambda: os.getenv("JITSI_TRANSCRIPTION_ENABLED", "true").lower() in ("true", "1", "yes")
+    )
+    # Jitsi Transcription Bridge Provider
+    # Options: "none" (default, public meet.jit.si without external bridge),
+    #          "jigasi" (self-hosted Jitsi with Jigasi or opus-transcriber-proxy),
+    #          "jaas" (8x8 Jitsi as a Service transcription webhooks)
+    jitsi_bridge_provider: str = Field(
+        default_factory=lambda: os.getenv("JITSI_BRIDGE_PROVIDER", "none").lower()
+    )
+
     # Persistence / Database Configuration
     # Supported: "postgres" (SQLAlchemy/PostgreSQL or SQLite), "memory" (test/dev explicit in-memory)
     database_url: Optional[str] = Field(default_factory=lambda: os.getenv("DATABASE_URL", None))
@@ -111,6 +131,41 @@ class InterviewConfig(BaseModel):
             if self.llm_provider.lower() == "openai" and not self.llm_api_key:
                 raise ValueError(
                     "CRITICAL CONFIGURATION ERROR: INTERVIEW_LLM_PROVIDER is 'openai' but no LLM API key is configured."
+                )
+
+            # Jitsi Transcription Bridge validation for production
+            if self.jitsi_bridge_provider == "jaas":
+                if not self.jitsi_app_id:
+                    raise ValueError(
+                        "CRITICAL JITSI CONFIGURATION ERROR: JITSI_BRIDGE_PROVIDER is 'jaas', but JITSI_APP_ID is missing. "
+                        "8x8 JaaS requires an App ID (e.g. 'vpaas-magic-cookie-xxx')."
+                    )
+                if not (self.jitsi_api_key or self.jitsi_secret):
+                    raise ValueError(
+                        "CRITICAL JITSI CONFIGURATION ERROR: JITSI_BRIDGE_PROVIDER is 'jaas', but JITSI_API_KEY / JITSI_SECRET is missing. "
+                        "JaaS authenticated rooms require signed meeting JWTs."
+                    )
+                if not self.jitsi_webhook_secret:
+                    raise ValueError(
+                        "CRITICAL JITSI CONFIGURATION ERROR: JITSI_BRIDGE_PROVIDER is 'jaas', but JITSI_WEBHOOK_SECRET is missing. "
+                        "Cannot authenticate incoming 8x8 JaaS transcription webhook events."
+                    )
+            elif self.jitsi_bridge_provider == "jigasi":
+                if not self.jitsi_webhook_secret:
+                    raise ValueError(
+                        "CRITICAL JITSI CONFIGURATION ERROR: JITSI_BRIDGE_PROVIDER is 'jigasi', but JITSI_WEBHOOK_SECRET is missing. "
+                        "Cannot authenticate incoming bridge transcription callbacks."
+                    )
+                if self.jitsi_server_url == "https://meet.jit.si":
+                    raise ValueError(
+                        "CRITICAL JITSI CONFIGURATION ERROR: JITSI_BRIDGE_PROVIDER is 'jigasi', but JITSI_SERVER_URL is configured "
+                        "as public 'https://meet.jit.si'. Jigasi requires a dedicated self-hosted Jitsi Meet deployment."
+                    )
+            elif self.jitsi_transcription_enabled and self.jitsi_bridge_provider == "none":
+                raise ValueError(
+                    "CRITICAL JITSI CONFIGURATION ERROR: JITSI_TRANSCRIPTION_ENABLED is true in production, but "
+                    "JITSI_BRIDGE_PROVIDER is 'none'. Public meet.jit.si does not expose remote participant audio or transcripts "
+                    "to external backends. Configure either JITSI_BRIDGE_PROVIDER=jaas (8x8 JaaS) or JITSI_BRIDGE_PROVIDER=jigasi (self-hosted)."
                 )
 
     

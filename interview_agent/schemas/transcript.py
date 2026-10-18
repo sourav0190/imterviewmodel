@@ -31,6 +31,7 @@ class TranscriptSegment(BaseModel):
     language: str = "en"
     sequence_number: Optional[int] = None
     is_simulated: bool = False
+    source: str = Field(default="bridge", description="Source provenance: 'bridge', 'local_microphone', or 'simulation'")
 
 class TranscriptResponse(BaseModel):
     session_id: str

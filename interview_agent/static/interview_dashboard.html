@@ -7,6 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Official Jitsi Meet IFrame API -->
+    <script src="https://meet.jit.si/external_api.js"></script>
     <style>
         :root {
             --bg-base: #090d16;
@@ -533,6 +535,85 @@
             gap: 10px;
             margin-top: 14px;
         }
+
+        /* Jitsi Meeting Panel Styles */
+        .jitsi-panel-wrapper {
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 16px 28px;
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .jitsi-panel-wrapper.active {
+            display: flex;
+        }
+
+        .jitsi-header-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .jitsi-status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: #38bdf8;
+            font-weight: 600;
+        }
+
+        .jitsi-consent-banner {
+            background: rgba(14, 165, 233, 0.08);
+            border: 1px solid rgba(14, 165, 233, 0.25);
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 0.8rem;
+            color: #7dd3fc;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .jitsi-frame-box {
+            width: 100%;
+            height: 480px;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border-subtle);
+            position: relative;
+        }
+
+        .badge-concept {
+            display: inline-block;
+            background: rgba(99, 102, 241, 0.18);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.35);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            margin: 2px 4px 2px 0;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .report-section-box {
+            background: #111827;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid #374151;
+            margin-bottom: 14px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -562,9 +643,91 @@
         </div>
         <div class="btn-group">
             <button class="btn-primary" id="btn-create" onclick="createNewSession()">+ New Session</button>
+            <button class="btn-primary" id="btn-jitsi-toggle" onclick="toggleJitsiMeeting()" style="background: linear-gradient(135deg, #0ea5e9, #0369a1);"><span id="jitsi-btn-icon">🎥</span> Jitsi Meet <span id="jitsi-status-badge" style="font-size:0.75rem; background:rgba(0,0,0,0.3); padding:2px 7px; border-radius:10px; margin-left:4px;">Ready</span></button>
+            <button class="btn-secondary" id="btn-invite" onclick="openCandidateInviteModal()">🔗 Candidate Link</button>
             <button class="btn-secondary" id="btn-mic" onclick="openMicModal()" style="background: linear-gradient(135deg, #0284c7, #2563eb); color: white;">🎙️ Live Mic Stream</button>
+            <button class="btn-secondary" id="btn-jitsi-dev" onclick="runJitsiBridgeSimulation()" style="color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">⚡ Test Jitsi Bridge</button>
             <button class="btn-secondary" id="btn-mock" onclick="runMockSimulation()">⚡ Run Mock Simulation</button>
             <button class="btn-success" id="btn-finalize" onclick="finalizeInterview()">📋 Finalize & Report</button>
+        </div>
+    </div>
+
+    <!-- Jitsi Meeting Embedded Panel -->
+    <div id="jitsi-panel" class="jitsi-panel-wrapper">
+        <div class="jitsi-header-bar">
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <span class="jitsi-status-indicator">
+                    <span id="jitsi-pulse-dot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#38bdf8;"></span>
+                    <span id="jitsi-room-title">Jitsi Meeting</span>
+                </span>
+                <span id="jitsi-room-badge" style="font-family:'JetBrains Mono', monospace; font-size:0.8rem; background:rgba(56, 189, 248, 0.12); color:#7dd3fc; padding:3px 10px; border-radius:6px; border:1px solid rgba(56, 189, 248, 0.25);">Room: Standby</span>
+                <span id="jitsi-participant-count" style="font-size:0.8rem; color:var(--text-muted);">1 participant</span>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button class="btn-secondary" onclick="openCandidateInviteModal()" style="font-size:0.8rem; padding:6px 12px;">🔗 Share Link</button>
+                <button class="btn-secondary" onclick="toggleJitsiSize()" id="btn-jitsi-resize" style="font-size:0.8rem; padding:6px 12px;">↕ Toggle Size</button>
+                <button class="btn-secondary" onclick="closeJitsiMeeting()" style="font-size:0.8rem; padding:6px 12px; background:#dc2626; color:white; border:none;">✖ End Meeting</button>
+            </div>
+        </div>
+
+        <div class="jitsi-consent-banner">
+            <span>🔴</span>
+            <div>
+                <strong>Active Audio Transcription Notice:</strong> Speech dialogue in this Jitsi meeting is processed in memory for live note generation, key concept extraction, and technical evaluation. Raw audio is never saved to disk by default. Both participants must consent.
+            </div>
+        </div>
+
+        <div id="jitsi-frame-container" class="jitsi-frame-box">
+            <!-- Jitsi Meet IFrame will be injected here by JitsiMeetExternalAPI -->
+            <div id="jitsi-loading-placeholder" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted); gap:12px;">
+                <div style="font-size:1.1rem; color:#f3f4f6;">Ready to start Jitsi Meeting</div>
+                <div style="font-size:0.85rem;">Click "Jitsi Meet" or "Start Meeting" to embed the video call with high-entropy room security.</div>
+                <button class="btn-primary" onclick="initJitsiMeeting()" style="margin-top:8px;">▶ Join Call Now</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Candidate Invitation Modal -->
+    <div class="modal-overlay" id="candidate-modal">
+        <div class="modal-card" style="max-width: 580px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 style="font-size: 1.3rem; display: flex; align-items: center; gap: 8px;">
+                    <span>🔗</span> Candidate Meeting Invitation
+                </h2>
+                <button class="btn-secondary" onclick="closeCandidateInviteModal()">Close</button>
+            </div>
+
+            <div class="disclaimer-box" style="margin-top: 0; margin-bottom: 18px; border-left-color: #0284c7; background: rgba(2, 132, 199, 0.08); color: #bae6fd;">
+                <strong>Privacy & Room Security:</strong> This interview uses a unique, high-entropy unguessable room name. Share this link only with the authorized candidate.
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px;">
+                <div>
+                    <label style="font-size: 0.82rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Candidate Name:</label>
+                    <input type="text" id="invite-candidate-name" readonly style="width: 100%; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-subtle); padding: 8px 12px; border-radius: 6px;" />
+                </div>
+
+                <div>
+                    <label style="font-size: 0.82rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Jitsi Room Name:</label>
+                    <input type="text" id="invite-room-name" readonly style="width: 100%; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-subtle); padding: 8px 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;" />
+                </div>
+
+                <div>
+                    <label style="font-size: 0.82rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Candidate Direct Join URL:</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="invite-join-url" readonly style="flex: 1; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-subtle); padding: 8px 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem;" />
+                        <button class="btn-primary" onclick="copyCandidateJoinUrl()">📋 Copy</button>
+                    </div>
+                </div>
+
+                <div style="font-size: 0.8rem; color: #9ca3af; background: rgba(255,255,255,0.03); padding: 10px 14px; border-radius: 6px; line-height: 1.45;">
+                    💡 <strong>Candidate Join Workflow:</strong> The candidate opens the link directly in Chrome, Firefox, Safari, or Edge. No software installation is required. Audio and video connect via WebRTC.
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end;">
+                <button class="btn-secondary" onclick="closeCandidateInviteModal()">Done</button>
+            </div>
         </div>
     </div>
 
@@ -1142,10 +1305,11 @@
             const isInterviewer = seg.speaker_role === 'interviewer';
             const bubble = document.createElement('div');
             bubble.className = `transcript-bubble ${isInterviewer ? 'bubble-interviewer' : 'bubble-candidate'}`;
+            const srcLabel = seg.source ? `<span style="font-size:0.68rem; opacity:0.75; margin-left:4px; text-transform:uppercase; font-family:'JetBrains Mono',monospace;">[${seg.source}]</span>` : '';
             bubble.innerHTML = `
                 <div class="bubble-header">
                     <span class="${isInterviewer ? 'role-interviewer' : 'role-candidate'}">${seg.speaker_name} (${seg.speaker_role.toUpperCase()})</span>
-                    <span class="time-tag">${seg.start_time.toFixed(1)}s - ${seg.end_time.toFixed(1)}s</span>
+                    <span class="time-tag">${seg.start_time.toFixed(1)}s - ${seg.end_time.toFixed(1)}s ${srcLabel}</span>
                 </div>
                 <div>${seg.text}</div>
             `;
@@ -1369,11 +1533,15 @@
             const body = document.getElementById('report-body');
             lastReportData = report;
 
-            const evalsHtml = (report.question_evaluations || []).map(ev => `
+            const evalsHtml = (report.question_evaluations || []).map((ev, idx) => `
                 <div style="background:#111827; border:1px solid #374151; border-radius:10px; padding:14px; margin-top:12px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <span style="font-weight:600; font-size:0.9rem;">${ev.question_text}</span>
+                        <span style="font-weight:600; font-size:0.9rem;">${idx + 1}. ${ev.question_text}</span>
                         <span style="color:#10b981; font-weight:700;">${ev.overall_score}/5.0</span>
+                    </div>
+                    <div style="font-size:0.75rem; color:#9ca3af; margin-bottom:6px;">
+                        <span>⏱ Answered at ${ev.answer_start_time.toFixed(1)}s - ${ev.answer_end_time.toFixed(1)}s</span>
+                        ${ev.is_rubric_based ? ' • <span style="color:#38bdf8;">Custom Rubric</span>' : ''}
                     </div>
                     <div style="font-size:0.84rem; color:#d1d5db; margin-bottom:8px;">${ev.explanation}</div>
                     ${ev.scores ? `
@@ -1384,12 +1552,56 @@
                 </div>
             `).join('');
 
+            const participantsHtml = (report.participants && report.participants.length > 0)
+                ? report.participants.map(p => `<span style="background:rgba(255,255,255,0.06); padding:3px 8px; border-radius:6px; font-size:0.8rem; border:1px solid #374151;">👤 ${p}</span>`).join(' ')
+                : `<span style="color:#9ca3af; font-size:0.8rem;">${report.candidate_name} (Candidate) • Interviewer</span>`;
+
+            const prov = report.transcript_provenance || {};
+            const bridgeCount = prov.bridge || 0;
+            const micCount = prov.local_microphone || 0;
+            const simCount = prov.simulation || 0;
+            const provBadges = [];
+            if (bridgeCount > 0) {
+                provBadges.push(`<span style="background:rgba(16, 185, 129, 0.15); color:#34d399; border:1px solid #059669; padding:3px 8px; border-radius:6px; font-size:0.75rem; font-weight:600;">🌐 Bridge: ${bridgeCount}</span>`);
+            }
+            if (micCount > 0) {
+                provBadges.push(`<span style="background:rgba(6, 182, 212, 0.15); color:#38bdf8; border:1px solid #0891b2; padding:3px 8px; border-radius:6px; font-size:0.75rem; font-weight:600;">🎙️ Local Mic: ${micCount}</span>`);
+            }
+            if (simCount > 0) {
+                provBadges.push(`<span style="background:rgba(245, 158, 11, 0.15); color:#fbbf24; border:1px solid #d97706; padding:3px 8px; border-radius:6px; font-size:0.75rem; font-weight:600;">🧪 Simulated: ${simCount}</span>`);
+            }
+            if (provBadges.length === 0) {
+                provBadges.push(`<span style="background:rgba(156, 163, 175, 0.15); color:#9ca3af; border:1px solid #4b5563; padding:3px 8px; border-radius:6px; font-size:0.75rem;">None recorded</span>`);
+            }
+            const provenanceHtml = provBadges.join(' ');
+
+            const conceptsHtml = (report.technical_concepts_discussed && report.technical_concepts_discussed.length > 0)
+                ? report.technical_concepts_discussed.map(c => `<span class="badge-concept">${c}</span>`).join('')
+                : '<span style="color:#9ca3af; font-size:0.8rem;">Standard technical foundation</span>';
+
+            const actionsHtml = (report.decisions_and_actions && report.decisions_and_actions.length > 0)
+                ? `<ul style="margin-left:18px; font-size:0.82rem; color:#d1d5db; margin-top:6px; line-height:1.4;">${report.decisions_and_actions.map(a => `<li>${a}</li>`).join('')}</ul>`
+                : '<div style="color:#9ca3af; font-size:0.8rem; margin-top:4px;">No immediate follow-up actions flagged.</div>';
+
+            const unansweredHtml = (report.unanswered_questions && report.unanswered_questions.length > 0)
+                ? `
+                    <div class="report-section-box" style="border-left: 3px solid #f59e0b; background: rgba(245, 158, 11, 0.05); margin-top: 14px;">
+                        <strong style="color:#f59e0b; font-size:0.85rem;">⚠️ Unanswered or Incomplete Discussion Points:</strong>
+                        <ul style="margin-left:18px; font-size:0.82rem; color:#fbbf24; margin-top:6px; line-height:1.4;">
+                            ${report.unanswered_questions.map(u => `<li>${u}</li>`).join('')}
+                        </ul>
+                    </div>
+                `
+                : '';
+
             body.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:center; background:#1f293d; padding:18px; border-radius:12px; margin-bottom:18px;">
                     <div>
                         <div style="font-size:1.15rem; font-weight:700;">${report.candidate_name}</div>
                         <div style="font-size:0.85rem; color:#9ca3af;">${report.interview_title}</div>
-                        <div style="font-size:0.75rem; color:#6b7280; font-family:'JetBrains Mono', monospace; margin-top:2px;">Session: ${report.session_id}</div>
+                        <div style="font-size:0.75rem; color:#6b7280; font-family:'JetBrains Mono', monospace; margin-top:2px;">
+                            Session: ${report.session_id} • Date: ${report.meeting_date || new Date().toISOString().split('T')[0]}
+                        </div>
                     </div>
                     <div style="text-align:right;">
                         <div style="font-size:2rem; font-weight:800; color:#10b981;">${report.aggregate_score} / 5.0</div>
@@ -1397,9 +1609,25 @@
                     </div>
                 </div>
 
+                <div class="report-section-box" style="margin-bottom:14px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <strong style="color:#9ca3af; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px;">Verified Participants:</strong>
+                        <strong style="color:#9ca3af; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px;">Transcript Provenance:</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                        <div style="display:flex; flex-wrap:wrap; gap:8px;">${participantsHtml}</div>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px;">${provenanceHtml}</div>
+                    </div>
+                </div>
+
                 <div style="margin-bottom:16px; font-size:0.9rem; line-height:1.55;">
                     <strong style="color:#e5e7eb;">Executive Summary:</strong><br>
                     <span style="color:#d1d5db;">${report.executive_summary}</span>
+                </div>
+
+                <div class="report-section-box" style="margin-bottom:16px;">
+                    <strong style="color:#818cf8; font-size:0.85rem; display:block; margin-bottom:6px;">Technical Concepts Discussed:</strong>
+                    <div>${conceptsHtml}</div>
                 </div>
 
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px;">
@@ -1417,8 +1645,15 @@
                     </div>
                 </div>
 
-                <div>
-                    <strong style="color:#e5e7eb; font-size:0.9rem;">Question-by-Question Evaluation:</strong>
+                <div class="report-section-box" style="margin-bottom:16px;">
+                    <strong style="color:#38bdf8; font-size:0.85rem;">📋 Decisions & Follow-up Actions:</strong>
+                    ${actionsHtml}
+                </div>
+
+                ${unansweredHtml}
+
+                <div style="margin-top:16px;">
+                    <strong style="color:#e5e7eb; font-size:0.9rem;">Question-by-Question Evaluation & Discussion Summaries:</strong>
                     ${evalsHtml || '<div style="color:#9ca3af; font-size:0.85rem; margin-top:6px;">No question evaluations recorded.</div>'}
                 </div>
             `;
@@ -1444,21 +1679,62 @@
             if (!lastReportData) return;
             const r = lastReportData;
             let md = `# Interview Evaluation Report: ${r.candidate_name}\n\n`;
-            md += `**Title**: ${r.interview_title}\n`;
+            md += `**Meeting Title**: ${r.interview_title}\n`;
+            md += `**Date**: ${r.meeting_date || new Date().toISOString()}\n`;
             md += `**Session ID**: ${r.session_id}\n`;
             md += `**Overall Score**: ${r.aggregate_score} / 5.0 (${r.aggregate_percentage}%)\n\n`;
+
+            if (r.transcript_provenance) {
+                const prov = r.transcript_provenance;
+                md += `**Transcript Provenance**: Bridge/JaaS: ${prov.bridge || 0} segments | Local Mic: ${prov.local_microphone || 0} segments | Simulated: ${prov.simulation || 0} segments\n\n`;
+            }
+
+            md += `## Verified Participants\n`;
+            if (r.participants && r.participants.length > 0) {
+                r.participants.forEach(p => md += `- ${p}\n`);
+            } else {
+                md += `- ${r.candidate_name} (Candidate)\n- Technical Interviewer\n`;
+            }
+            md += `\n`;
+
             md += `## Executive Summary\n${r.executive_summary}\n\n`;
+
+            md += `## Technical Concepts Discussed\n`;
+            if (r.technical_concepts_discussed && r.technical_concepts_discussed.length > 0) {
+                r.technical_concepts_discussed.forEach(c => md += `- ${c}\n`);
+            } else {
+                md += `None recorded.\n`;
+            }
+            md += `\n`;
+
             md += `## Top Strengths\n`;
             (r.top_strengths || []).forEach(s => md += `- ${s}\n`);
             md += `\n## Areas for Growth\n`;
             (r.key_areas_for_improvement || []).forEach(i => md += `- ${i}\n`);
-            md += `\n## Question-wise Breakdown\n`;
+            md += `\n`;
+
+            md += `## Decisions and Follow-Up Actions\n`;
+            if (r.decisions_and_actions && r.decisions_and_actions.length > 0) {
+                r.decisions_and_actions.forEach(a => md += `- [ ] ${a}\n`);
+            } else {
+                md += `None recorded.\n`;
+            }
+            md += `\n`;
+
+            if (r.unanswered_questions && r.unanswered_questions.length > 0) {
+                md += `## Unanswered or Incomplete Discussion Points\n`;
+                r.unanswered_questions.forEach(u => md += `- ⚠️ ${u}\n`);
+                md += `\n`;
+            }
+
+            md += `## Question-wise Discussion & Rubric Evaluations\n`;
             (r.question_evaluations || []).forEach((ev, i) => {
                 md += `\n### ${i+1}. ${ev.question_text}\n`;
+                md += `- **Timestamp**: ${ev.answer_start_time.toFixed(1)}s - ${ev.answer_end_time.toFixed(1)}s\n`;
                 md += `- **Score**: ${ev.overall_score} / 5.0\n`;
-                md += `- **Explanation**: ${ev.explanation}\n`;
+                md += `- **Discussion Summary**: ${ev.explanation}\n`;
                 if (ev.scores) {
-                    ev.scores.forEach(s => md += `  - ${s.dimension_name}: ${s.score}/5.0\n`);
+                    ev.scores.forEach(s => md += `  - ${s.dimension_name}: ${s.score}/5.0 (${s.feedback})\n`);
                 }
             });
             md += `\n---\n*Notice: ${r.proctoring_score_isolation_notice}*\n`;
@@ -1470,6 +1746,279 @@
             document.body.appendChild(downloadAnchor);
             downloadAnchor.click();
             downloadAnchor.remove();
+        }
+
+        // --- Jitsi Meet IFrame API Integration ---
+        let jitsiApi = null;
+        let jitsiRoomConfig = null;
+        let isJitsiActive = false;
+        let jitsiParticipantCount = 1;
+
+        async function loadJitsiConfig(sessionId) {
+            try {
+                const res = await apiFetch(`/api/v1/interviews/${sessionId}/jitsi/config`);
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || `Server returned ${res.status}`);
+                }
+                jitsiRoomConfig = await res.json();
+                return jitsiRoomConfig;
+            } catch (e) {
+                console.error("Failed to load Jitsi config:", e);
+                showToast(`Jitsi Config Error: ${e.message}`, "error");
+                return null;
+            }
+        }
+
+        async function toggleJitsiMeeting() {
+            if (isJitsiActive) {
+                const panel = document.getElementById('jitsi-panel');
+                if (panel.style.display === 'none') {
+                    panel.style.display = 'flex';
+                } else {
+                    panel.style.display = 'none';
+                }
+                return;
+            }
+            await initJitsiMeeting();
+        }
+
+        async function initJitsiMeeting() {
+            if (!currentSessionId) {
+                await createNewSession();
+            }
+
+            const panel = document.getElementById('jitsi-panel');
+            panel.style.display = 'flex';
+            panel.classList.add('active');
+
+            const badge = document.getElementById('jitsi-status-badge');
+            badge.textContent = "Connecting...";
+            badge.style.background = "#f59e0b";
+
+            const config = await loadJitsiConfig(currentSessionId);
+            if (!config) {
+                badge.textContent = "Error";
+                badge.style.background = "#ef4444";
+                return;
+            }
+
+            document.getElementById('jitsi-room-badge').textContent = `Room: ${config.room_name}`;
+            document.getElementById('jitsi-room-title').textContent = `Jitsi: ${config.subject}`;
+
+            // Clean up previous instance if any
+            if (jitsiApi) {
+                try { jitsiApi.dispose(); } catch (e) {}
+                jitsiApi = null;
+            }
+
+            const container = document.getElementById('jitsi-frame-container');
+            container.innerHTML = '';
+
+            // Verify JitsiMeetExternalAPI is loaded
+            if (typeof window.JitsiMeetExternalAPI === 'undefined') {
+                container.innerHTML = `
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:#f87171; gap:12px; padding:20px; text-align:center;">
+                        <div style="font-size:1.1rem; font-weight:700;">Jitsi Meet Script Blocked or Offline</div>
+                        <div style="font-size:0.85rem; color:#d1d5db; max-width:500px;">
+                            Could not load Jitsi external_api.js from <code>${config.server_url}</code>.
+                            Check internet connectivity or firewall rules blocking <code>${config.domain}</code>.
+                        </div>
+                        <a href="${config.interviewer_join_url}" target="_blank" class="btn-primary" style="text-decoration:none; margin-top:8px;">
+                            ↗ Open Meeting in New Tab
+                        </a>
+                    </div>
+                `;
+                badge.textContent = "Blocked";
+                badge.style.background = "#ef4444";
+                return;
+            }
+
+            try {
+                const domain = config.domain || "meet.jit.si";
+                const options = {
+                    roomName: config.room_name,
+                    width: '100%',
+                    height: '100%',
+                    parentNode: container,
+                    jwt: config.jwt_token || undefined,
+                    configOverwrite: {
+                        startWithAudioMuted: false,
+                        startWithVideoMuted: false,
+                        enableWelcomePage: false,
+                        prejoinPageEnabled: false,
+                        transcription: {
+                            enabled: true,
+                            useAppLanguage: true
+                        }
+                    },
+                    interfaceConfigOverwrite: {
+                        SHOW_JITSI_WATERMARK: false,
+                        SHOW_WATERMARK_FOR_GUESTS: false,
+                        DEFAULT_BACKGROUND: '#090d16',
+                        TOOLBAR_BUTTONS: [
+                            'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
+                            'fodeviceselection', 'hangup', 'chat', 'settings', 'raisehand',
+                            'videoquality', 'filmstrip', 'tileview'
+                        ]
+                    },
+                    userInfo: {
+                        displayName: config.interviewer_name || "Technical Interviewer"
+                    }
+                };
+
+                jitsiApi = new JitsiMeetExternalAPI(domain, options);
+                isJitsiActive = true;
+
+                // Event Listeners
+                jitsiApi.addEventListener('videoConferenceJoined', (event) => {
+                    console.log("Jitsi conference joined:", event);
+                    badge.textContent = "In Call";
+                    badge.style.background = "#10b981";
+                    document.getElementById('jitsi-pulse-dot').style.background = "#10b981";
+                    showToast("Connected to Jitsi meeting room.", "success");
+                });
+
+                jitsiApi.addEventListener('participantJoined', (event) => {
+                    console.log("Participant joined:", event);
+                    jitsiParticipantCount++;
+                    document.getElementById('jitsi-participant-count').textContent = `${jitsiParticipantCount} participants`;
+                    const name = event.displayName || "Candidate / Participant";
+                    showToast(`👤 ${name} joined the meeting.`, "info");
+                });
+
+                jitsiApi.addEventListener('participantLeft', (event) => {
+                    console.log("Participant left:", event);
+                    if (jitsiParticipantCount > 1) jitsiParticipantCount--;
+                    document.getElementById('jitsi-participant-count').textContent = `${jitsiParticipantCount} participants`;
+                    showToast("Participant disconnected from meeting.", "warning");
+                });
+
+                jitsiApi.addEventListener('videoConferenceLeft', () => {
+                    console.log("Left video conference");
+                    badge.textContent = "Ended";
+                    badge.style.background = "#6b7280";
+                    document.getElementById('jitsi-pulse-dot').style.background = "#6b7280";
+                    showToast("Meeting ended. You can finalize the report now.", "info");
+                });
+
+                jitsiApi.addEventListener('readyToClose', () => {
+                    closeJitsiMeeting();
+                });
+
+                jitsiApi.addEventListener('errorOccurred', (err) => {
+                    console.error("Jitsi conference error:", err);
+                    badge.textContent = "Error";
+                    badge.style.background = "#ef4444";
+                    showToast(`Jitsi error: ${err.message || 'Connection failure'}`, "error");
+                });
+
+                jitsiApi.addEventListener('transcriptionStatusChanged', (status) => {
+                    console.log("Jitsi transcription status:", status);
+                });
+
+            } catch (err) {
+                console.error("Error launching Jitsi API:", err);
+                badge.textContent = "Failed";
+                badge.style.background = "#ef4444";
+                showToast(`Jitsi initialization failed: ${err.message}`, "error");
+            }
+        }
+
+        function closeJitsiMeeting() {
+            if (jitsiApi) {
+                try { jitsiApi.dispose(); } catch (e) {}
+                jitsiApi = null;
+            }
+            isJitsiActive = false;
+            const panel = document.getElementById('jitsi-panel');
+            panel.style.display = 'none';
+            panel.classList.remove('active');
+            const badge = document.getElementById('jitsi-status-badge');
+            badge.textContent = "Ready";
+            badge.style.background = "rgba(0,0,0,0.3)";
+            document.getElementById('jitsi-pulse-dot').style.background = "#38bdf8";
+            document.getElementById('jitsi-frame-container').innerHTML = `
+                <div id="jitsi-loading-placeholder" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted); gap:12px;">
+                    <div style="font-size:1.1rem; color:#f3f4f6;">Ready to start Jitsi Meeting</div>
+                    <div style="font-size:0.85rem;">Click "Jitsi Meet" to embed the video call with high-entropy room security.</div>
+                    <button class="btn-primary" onclick="initJitsiMeeting()" style="margin-top:8px;">▶ Join Call Now</button>
+                </div>
+            `;
+        }
+
+        function toggleJitsiSize() {
+            const frame = document.getElementById('jitsi-frame-container');
+            const btn = document.getElementById('btn-jitsi-resize');
+            if (frame.style.height === '720px') {
+                frame.style.height = '480px';
+                btn.textContent = '↕ Expand';
+            } else {
+                frame.style.height = '720px';
+                btn.textContent = '↕ Compress';
+            }
+        }
+
+        async function openCandidateInviteModal() {
+            if (!currentSessionId) {
+                await createNewSession();
+            }
+            const config = await loadJitsiConfig(currentSessionId);
+            if (!config) return;
+
+            document.getElementById('invite-candidate-name').value = config.candidate_name;
+            document.getElementById('invite-room-name').value = config.room_name;
+            document.getElementById('invite-join-url').value = config.candidate_join_url;
+
+            const modal = document.getElementById('candidate-modal');
+            modal.style.display = 'flex';
+            modal.classList.add('active');
+        }
+
+        function closeCandidateInviteModal() {
+            const modal = document.getElementById('candidate-modal');
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+        }
+
+        function copyCandidateJoinUrl() {
+            const input = document.getElementById('invite-join-url');
+            input.select();
+            input.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(input.value).then(() => {
+                showToast("Candidate meeting link copied to clipboard!", "success");
+            }).catch(() => {
+                document.execCommand('copy');
+                showToast("Link copied!", "success");
+            });
+        }
+
+        async function runJitsiBridgeSimulation() {
+            if (!currentSessionId) {
+                await createNewSession();
+            }
+            const btn = document.getElementById('btn-jitsi-dev');
+            btn.disabled = true;
+            btn.textContent = "⚡ Ingesting Jitsi Bridge...";
+
+            try {
+                const res = await apiFetch(`/api/v1/interviews/${currentSessionId}/jitsi/simulate-dev?auto_finalize=false`, {
+                    method: 'POST'
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || `Server status ${res.status}`);
+                }
+                const data = await res.json();
+                showToast(`Jitsi bridge: ${data.segments_ingested} turns ingested & notes updated!`, "success");
+                await syncSessionData(currentSessionId);
+            } catch (e) {
+                console.error("Jitsi bridge test error:", e);
+                showToast(`Jitsi Bridge Error: ${e.message}`, "error");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "⚡ Test Jitsi Bridge";
+            }
         }
 
         // Close modal when clicking outside of modal card

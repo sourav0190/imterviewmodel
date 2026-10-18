@@ -66,14 +66,23 @@ class FinalReport(BaseModel):
     status: str
     started_at: datetime
     completed_at: datetime
+    meeting_date: Optional[str] = None
+    participants: List[str] = Field(default_factory=list)
     executive_summary: str
     aggregate_score: float
     max_possible_score: float
     aggregate_percentage: float
     top_strengths: List[str] = Field(default_factory=list)
     key_areas_for_improvement: List[str] = Field(default_factory=list)
+    technical_concepts_discussed: List[str] = Field(default_factory=list)
+    decisions_and_actions: List[str] = Field(default_factory=list)
+    unanswered_questions: List[str] = Field(default_factory=list)
     question_evaluations: List[AnswerEvaluation] = Field(default_factory=list)
     notes: List[InterviewNote] = Field(default_factory=list)
+    transcript_provenance: Dict[str, int] = Field(
+        default_factory=dict,
+        description="Breakdown of transcript segment count by source: 'bridge', 'local_microphone', 'simulation'"
+    )
     proctoring_score_isolation_notice: str = (
         "Notice: Technical interview evaluations are strictly decoupled from proctoring suspicion scores. "
         "Candidate competence is assessed purely on technical accuracy, problem-solving, and communication."

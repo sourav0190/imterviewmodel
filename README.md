@@ -244,4 +244,125 @@ followed by `alembic upgrade head`.
 - **WebSocket Event Broadcasting**: PostgreSQL alone handles persistent state storage; in a multi-worker application deployment (e.g., Gunicorn with multiple Uvicorn workers or multiple Kubernetes pods), WebSocket connections are terminated per worker. Multi-worker live broadcasting requires a distributed event backplane (such as **Redis Pub/Sub**) to fan out transcript and evaluation events across worker processes.
 
 ---
+
+## 🎥 Jitsi Meet Integration & Automated Interview Notes
+
+AiProtctor integrates **Jitsi Meet** as its official video meeting platform, connecting multi-participant video interviews to the automated Interview Intelligence Agent.
+
+### 1. Architecture & Design Decisions
+
+```
++-----------------------------------------------------------------------------------+
+|                              AiProtctor Dashboard                                 |
+|                                                                                   |
+|  +-------------------------------------+   +-----------------------------------+  |
+|  |     Embedded Jitsi Meet IFrame      |   |        Live Interview Feed        |  |
+|  |   (Official IFrame API: meet.jit.si)|   |                                   |  |
+|  |   - High-entropy room tokens        |   |   🎙️ Real-Time Transcript Stream  |  |
+|  |   - Full video & audio controls     |   |   📝 Structured QA Notes          |  |
+|  |   - Participant join/leave events   |   |   ⚖️ Dimensional Rubric Scoring   |  |
+|  +-------------------------------------+   +-----------------------------------+  |
++-----------------------------------------------------------------------------------+
+                                  │                                   ▲
+                                  │ (Room creation & Webhooks)        │ (WebSocket Stream)
+                                  ▼                                   │
++-----------------------------------------------------------------------------------+
+|                         FastAPI Backend (AiProtctor)                              |
+|                                                                                   |
+|  +-----------------------------+       +---------------------------------------+  |
+|  |  Jitsi Integration Package  | ----> |      Interview Session Pipeline       |  |
+|  |  (interview_agent/          |       |      - Question Detector              |  |
+|  |   integrations/jitsi/)      |       |      - Notes Service (Factual notes)  |  |
+|  |  - Room Manager (Entropy)   |       |      - Answer Evaluator (Rubric)      |  |
+|  |  - Transcription Adapter    |       |      - Report Service                 |  |
+|  |  - HMAC Signature Check     |       +---------------------------------------+  |
+|  +-----------------------------+                            │                     |
++-------------------------------------------------------------│---------------------+
+                                                              ▼
+                                             +----------------------------------+
+                                             |      PostgreSQL Persistence      |
+                                             |  - Sessions & Jitsi Room Config  |
+                                             |  - Transcript Segments           |
+                                             |  - Structured Notes & Reports    |
+                                             +----------------------------------+
+```
+
+### 2. Supported Deployments: Public meet.jit.si vs Self-Hosted vs 8x8 JaaS
+
+| Feature | Public (`meet.jit.si`) | Self-Hosted Jitsi Meet | Jitsi as a Service (JaaS) |
+|---|---|---|---|
+| **Setup Complexity** | Zero infrastructure; instant dev setup | Requires Linux VM with Docker / Debian | Managed cloud subscription by 8x8 |
+| **Room Privacy** | Public server; secured via high-entropy unpredictable room tokens | Fully isolated on private domain & VPC | Private domain (e.g. `8x8.vc`) |
+| **Authentication** | Anonymous rooms | JWT tokens (`JITSI_SECRET` / RS256/HS256) | Signed JaaS JWTs (`JITSI_APP_ID`) |
+| **Server-Side Audio Taps** | Restricted by 8x8; no raw media access to third-party servers | **Supported**: Jigasi / `opus-transcriber-proxy` | **Supported**: JaaS webhook transcription |
+| **Browser Audio Path** | Direct authorized mic streaming to FastAPI | Direct mic or bridge transcription | Direct mic or bridge transcription |
+| **Recommended Use** | Local development, rapid testing, demos | Enterprise on-premise, HIPAA, strict privacy | Scalable managed production |
+
+> [!IMPORTANT]
+> **Real Meeting Audio & Transcription Infrastructure**:
+> The free public cluster `meet.jit.si` does not allow third-party backends to tap remote participant audio streams directly from browser iframes due to WebRTC security and cross-origin boundaries.
+> To transcribe speech from **both** participants in a real Jitsi meeting, configure `JITSI_BRIDGE_PROVIDER` in `.env`:
+> - `jaas`: 8x8 JaaS (Jitsi as a Service). Provides native server-side transcription and dispatches signed `TRANSCRIPTION_CHUNK` webhooks (`X-8x8-Signature`).
+> - `jigasi`: Self-hosted Jitsi instance with Jigasi or `opus-transcriber-proxy`. Taps JVB audio for all participants and posts HMAC-signed transcript segments (`X-Jitsi-Signature`).
+> - `none`: Local microphone capture or development testing only.
+>
+> All transcript segments are immutably tagged with their `source`: `bridge`, `local_microphone`, or `simulation`. The finalized evaluation report includes a verified `transcript_provenance` breakdown. Development simulation endpoints are strictly forbidden (`403 Forbidden`) in production.
+
+### 3. Step-by-Step: Running a Two-Person Test Meeting
+
+1. **Start the Application**:
+   ```powershell
+   .\.venv\Scripts\python.exe main.py
+   ```
+2. **Open the Dashboard**:
+   Navigate to `http://localhost:8000/interview-dashboard` in Chrome or Edge.
+3. **Create Session**:
+   Click `+ New Session` in the top toolbar. A new interview session ID is generated.
+4. **Start Jitsi Meeting**:
+   Click `🎥 Jitsi Meet`. The dashboard fetches room configuration and embeds the Jitsi call with camera and microphone controls.
+5. **Invite Candidate**:
+   Click `🔗 Candidate Link`. Copy the candidate join URL and open it in another browser window (or incognito window).
+6. **Join and Interact**:
+   Both participants can see and speak to each other via WebRTC.
+7. **Ingest Real Transcript Events**:
+   - **For Jitsi Bridge Ingestion**: Click `⚡ Test Jitsi Bridge` to ingest realistic multi-turn dialogue directly through the Jitsi Transcription Adapter into PostgreSQL.
+   - **For Live Microphone Ingestion**: Click `🎙️ Live Mic Stream`, review the consent disclosure, and speak into your microphone.
+8. **View Generated Notes**:
+   Observe structured notes, key technical concepts, and question evaluations updating in real time via WebSockets.
+9. **Finalize and Export**:
+   Click `📋 Finalize & Report`. The executive report is synthesized with:
+   - Interview Title & Meeting Date
+   - Verified Participants
+   - Executive Summary
+   - Question-wise Discussion Summaries & Timestamps
+   - Key Demonstrated Strengths & Areas for Growth
+   - Technical Concepts Discussed
+   - Decisions and Follow-up Actions
+   - Unanswered / Unclear Discussion Points
+   Export as JSON or GitHub Markdown.
+
+### 4. Verifying Real Transcript Ingestion in PostgreSQL
+
+Verify transcript persistence in PostgreSQL or SQLite using `psql` or SQL queries:
+
+```sql
+-- Verify session and associated Jitsi room
+SELECT session_id, title, status, session_metadata->>'jitsi_room_name' AS jitsi_room
+FROM interview_sessions;
+
+-- Verify ingested transcript segments from Jitsi
+SELECT segment_id, speaker_name, speaker_role, start_time, end_time, text, sequence_number
+FROM interview_transcript_segments
+ORDER BY start_time ASC;
+
+-- Verify automated notes grounded in transcript
+SELECT note_id, question_text, key_concepts, follow_up_points
+FROM interview_notes;
+
+-- Verify final report
+SELECT report_id, aggregate_score, technical_concepts_discussed, decisions_and_actions
+FROM interview_final_reports;
+```
+
+---
 *Created with ❤️ for Advanced Online Assessment.*

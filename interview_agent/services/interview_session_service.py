@@ -86,37 +86,81 @@ class InterviewSessionService:
         if not segments:
             return None
 
+        last_seg = None
         for segment in segments:
-            # 2. Append segment to transcript
-            session.transcript_segments.append(segment)
-            session_repo.save(session)
+            res = await self.ingest_transcript_segment(session_id, segment)
+            if res:
+                last_seg = res
 
-            # Broadcast transcript segment immediately to UI
+        return last_seg or (segments[-1] if segments else None)
+
+    async def ingest_transcript_segment(
+        self,
+        session_id: str,
+        segment: TranscriptSegment
+    ) -> Optional[TranscriptSegment]:
+        """
+        Directly inngests an authorized transcript segment (from Jitsi bridge transcriber,
+        webhook, or STT service) into the interview pipeline.
+        Deduplicates, persists to database, broadcasts to WebSockets, and drives QA notes & evaluations.
+        """
+        session = session_repo.get(session_id)
+        if not session:
+            logger.warning(f"Session {session_id} not found for transcript segment ingestion")
+            return None
+
+        # Check deduplication against already ingested transcript segments
+        for existing in session.transcript_segments:
+            if existing.segment_id == segment.segment_id:
+                logger.debug(f"Skipping duplicate segment_id {segment.segment_id} for session {session_id}")
+                return None
+            if (
+                segment.sequence_number is not None
+                and existing.sequence_number is not None
+                and existing.speaker_id == segment.speaker_id
+                and existing.sequence_number == segment.sequence_number
+            ):
+                logger.debug(f"Skipping duplicate sequence {segment.sequence_number} for speaker {segment.speaker_id}")
+                return None
+
+        if getattr(segment, "sequence_number", None) is not None:
+            seq_key = (segment.speaker_id, segment.sequence_number)
+            str_key = f"{segment.speaker_id}_{segment.sequence_number}"
+            session.processed_sequence_numbers.add(seq_key)
+            session.processed_sequence_numbers.add(str_key)
+
+        # Append segment to transcript
+        session.transcript_segments.append(segment)
+        session.last_speech_timestamp = max(session.last_speech_timestamp, segment.end_time)
+        session.touch()
+        session_repo.save(session)
+
+        # Broadcast transcript segment immediately to UI
+        await self.broadcast(session_id, {
+            "type": "transcript_segment",
+            "segment": segment.model_dump()
+        })
+
+        # Conversational Processing (Question Detection & Answer Tracking)
+        in_progress_q, completed_q = question_detector.process_segment(session, segment)
+
+        # If a question-answer block was completed
+        if completed_q:
+            await self._handle_completed_question(session, completed_q)
+
+        # Broadcast updated in-progress question/answer state
+        if in_progress_q:
             await self.broadcast(session_id, {
-                "type": "transcript_segment",
-                "segment": segment.model_dump()
+                "type": "active_question_state",
+                "state": in_progress_q.model_dump()
             })
 
-            # 3. Conversational Processing (Question Detection & Answer Tracking)
-            in_progress_q, completed_q = question_detector.process_segment(session, segment)
+            # Check if answer buffer qualifies for provisional evaluation
+            if in_progress_q.accumulated_answer and len(in_progress_q.accumulated_answer.split()) >= 15:
+                # Trigger non-blocking provisional evaluation
+                asyncio.create_task(self._trigger_provisional_eval(session, in_progress_q))
 
-            # If a question-answer block was completed
-            if completed_q:
-                await self._handle_completed_question(session, completed_q)
-
-            # Broadcast updated in-progress question/answer state
-            if in_progress_q:
-                await self.broadcast(session_id, {
-                    "type": "active_question_state",
-                    "state": in_progress_q.model_dump()
-                })
-
-                # Check if answer buffer qualifies for provisional evaluation
-                if in_progress_q.accumulated_answer and len(in_progress_q.accumulated_answer.split()) >= 15:
-                    # Trigger non-blocking provisional evaluation
-                    asyncio.create_task(self._trigger_provisional_eval(session, in_progress_q))
-
-        return segments[-1]
+        return segment
 
     async def _handle_completed_question(self, session: InterviewSessionModel, completed_q: ActiveQuestionState):
         logger.info(f"Completed QA turn: {completed_q.question_id} for session {session.session_id}")
